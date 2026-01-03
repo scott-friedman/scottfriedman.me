@@ -473,7 +473,15 @@
                 const projectsEl = document.getElementById('projects-list');
                 if (projectsEl) {
                     projectsEl.innerHTML = content.projects
-                        .map(p => `<li><a href="${p.link || '#'}">${p.title}</a><span class="desc">— ${p.desc}</span></li>`)
+                        .map(p => {
+                            // Check if link is internal (page slug) or external (URL)
+                            const link = p.link || '#';
+                            const href = link.startsWith('http') || link.startsWith('#')
+                                ? link
+                                : `page.html?p=${link}`;
+                            const target = link.startsWith('http') ? ' target="_blank"' : '';
+                            return `<li><a href="${href}"${target}>${p.title}</a><span class="desc">— ${p.desc}</span></li>`;
+                        })
                         .join('');
                 }
             }
@@ -483,7 +491,15 @@
                 const writingEl = document.getElementById('writing-list');
                 if (writingEl) {
                     writingEl.innerHTML = content.writing
-                        .map(w => `<li><span class="date">${w.date}</span><a href="${w.link || '#'}">${w.title}</a></li>`)
+                        .map(w => {
+                            // Check if link is internal (page slug) or external (URL)
+                            const link = w.link || '#';
+                            const href = link.startsWith('http') || link.startsWith('#')
+                                ? link
+                                : `page.html?p=${link}`;
+                            const target = link.startsWith('http') ? ' target="_blank"' : '';
+                            return `<li><span class="date">${w.date}</span><a href="${href}"${target}>${w.title}</a></li>`;
+                        })
                         .join('');
                 }
             }
@@ -494,6 +510,23 @@
                 if (mixesEl) {
                     mixesEl.innerHTML = content.mixes
                         .map(m => `<div class="mix-embed"><iframe width="100%" height="60" src="${m.embedUrl}" frameborder="0"></iframe></div>`)
+                        .join('');
+                }
+            }
+
+            // Load Contact Links
+            if (content.contact && content.contact.length > 0) {
+                const contactEl = document.getElementById('contact-list');
+                if (contactEl) {
+                    contactEl.innerHTML = content.contact
+                        .map(c => {
+                            // Check if link is internal (page slug) or external (URL)
+                            const href = c.url.startsWith('http') || c.url.startsWith('#') || c.url.startsWith('mailto:')
+                                ? c.url
+                                : `page.html?p=${c.url}`;
+                            const target = c.url.startsWith('http') ? ' target="_blank"' : '';
+                            return `<li><a href="${href}"${target}>${c.name}</a></li>`;
+                        })
                         .join('');
                 }
             }

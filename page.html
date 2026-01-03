@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading... - Scott Friedman</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* Page-specific styles */
+        .page-content {
+            pointer-events: auto;
+        }
+        .page-content h2 {
+            margin-top: 2rem;
+        }
+        .page-content h2:first-child {
+            margin-top: 0;
+        }
+        .page-content img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+        .page-content ul, .page-content ol {
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .page-content li {
+            margin-bottom: 0.5rem;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+        }
+        .back-link::before {
+            content: '← ';
+        }
+        .loading {
+            color: var(--gray);
+            font-style: italic;
+        }
+        .not-found {
+            text-align: center;
+            padding: 3rem 0;
+        }
+        .not-found h2 {
+            color: var(--gray);
+        }
+    </style>
+</head>
+<body>
+    <!-- Collaborative drawing canvas -->
+    <canvas id="whiteboard"></canvas>
+
+    <!-- Mobile draw mode toggle -->
+    <button class="mobile-draw-toggle" aria-label="Toggle draw mode">
+        <span class="toggle-icon">✎</span>
+    </button>
+
+    <!-- Subtle drawing toolbar -->
+    <div class="draw-toolbar">
+        <div class="toolbar-group sizes">
+            <button class="size-btn" data-size="2" title="Fine"><span></span></button>
+            <button class="size-btn active" data-size="4" title="Medium"><span></span></button>
+            <button class="size-btn" data-size="8" title="Thick"><span></span></button>
+        </div>
+        <div class="toolbar-divider"></div>
+        <div class="toolbar-group colors">
+            <button class="color-btn active" data-color="auto" title="Auto colors">
+                <span class="rainbow"></span>
+            </button>
+            <button class="color-btn" data-color="#2d5a3d" title="Forest"></button>
+            <button class="color-btn" data-color="#c45d3a" title="Terracotta"></button>
+            <button class="color-btn" data-color="#6b4423" title="Brown"></button>
+            <button class="color-btn" data-color="#5c5347" title="Warm gray"></button>
+        </div>
+        <div class="toolbar-divider"></div>
+        <div class="toolbar-group tools">
+            <button class="tool-btn" data-tool="eraser" title="Eraser">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 20H7L3 16c-.8-.8-.8-2 0-2.8L14.6 1.6c.8-.8 2-.8 2.8 0l5 5c.8.8.8 2 0 2.8L11 20"/>
+                </svg>
+            </button>
+            <button class="tool-btn" data-tool="clear" title="Clear all">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <main>
+        <header>
+            <a href="index.html" class="back-link">back to home</a>
+            <h1 id="page-title" class="loading">Loading...</h1>
+        </header>
+
+        <hr>
+
+        <section id="page-section">
+            <div id="page-content" class="page-content">
+                <p class="loading">Loading page content...</p>
+            </div>
+        </section>
+
+        <hr>
+
+        <footer>
+            <p>© 2024 scott friedman</p>
+            <p class="small">made with html, css, and questionable taste</p>
+        </footer>
+    </main>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <script src="js/main.js"></script>
+    <script>
+        // Load page content from Firebase
+        (function() {
+            const params = new URLSearchParams(window.location.search);
+            const slug = params.get('p');
+
+            if (!slug) {
+                showNotFound();
+                return;
+            }
+
+            const FIREBASE_CONFIG = {
+                apiKey: "AIzaSyCFKStIkbW_omKXd7TQb3jUVuBJA4g3zqo",
+                authDomain: "scottfriedman-f400d.firebaseapp.com",
+                databaseURL: "https://scottfriedman-f400d-default-rtdb.firebaseio.com",
+                projectId: "scottfriedman-f400d",
+                storageBucket: "scottfriedman-f400d.firebasestorage.app",
+                messagingSenderId: "1046658110090",
+                appId: "1:1046658110090:web:49a24a0ff13b19cb111373"
+            };
+
+            // Firebase is already initialized by main.js, get the existing instance
+            const db = firebase.database();
+
+            db.ref('pages/' + slug).once('value').then((snapshot) => {
+                const page = snapshot.val();
+                if (!page) {
+                    showNotFound();
+                    return;
+                }
+
+                document.getElementById('page-title').textContent = page.title;
+                document.getElementById('page-title').classList.remove('loading');
+                document.getElementById('page-content').innerHTML = page.content || '<p>No content yet.</p>';
+                document.title = page.title + ' - Scott Friedman';
+            }).catch(() => {
+                showNotFound();
+            });
+
+            function showNotFound() {
+                document.getElementById('page-title').textContent = 'Page Not Found';
+                document.getElementById('page-title').classList.remove('loading');
+                document.getElementById('page-content').innerHTML = `
+                    <div class="not-found">
+                        <h2>oops!</h2>
+                        <p>This page doesn't exist (yet).</p>
+                        <p><a href="index.html">← head back home</a></p>
+                    </div>
+                `;
+                document.title = 'Not Found - Scott Friedman';
+            }
+        })();
+    </script>
+</body>
+</html>

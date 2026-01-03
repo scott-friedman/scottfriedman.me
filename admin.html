@@ -12,12 +12,28 @@
             color: #1a1a1a;
             line-height: 1.6;
             padding: 2rem;
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
         }
         h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
-        h2 { font-size: 1.1rem; margin: 2rem 0 1rem; color: #2d5a3d; }
+        h2 { font-size: 1.1rem; margin: 2rem 0 1rem; color: #2d5a3d; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; }
+        h3 { font-size: 0.95rem; color: #666; margin-bottom: 0.75rem; }
         .subtitle { color: #666; margin-bottom: 2rem; }
+
+        /* Tabs */
+        .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .tab {
+            padding: 0.6rem 1.2rem;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .tab:hover { border-color: #2d5a3d; }
+        .tab.active { background: #2d5a3d; color: white; border-color: #2d5a3d; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
 
         /* Login */
         #login-screen { text-align: center; padding: 4rem 2rem; }
@@ -56,8 +72,10 @@
             font-weight: 500;
             margin-bottom: 0.5rem;
             color: #333;
+            font-size: 0.9rem;
         }
-        input, textarea {
+        .label-hint { font-weight: normal; color: #999; font-size: 0.8rem; }
+        input, textarea, select {
             width: 100%;
             padding: 0.6rem 0.8rem;
             font-size: 0.95rem;
@@ -67,10 +85,14 @@
             font-family: inherit;
         }
         textarea { min-height: 80px; resize: vertical; }
-        input:focus, textarea:focus {
+        textarea.large { min-height: 200px; }
+        input:focus, textarea:focus, select:focus {
             outline: none;
             border-color: #2d5a3d;
         }
+        .inline-fields { display: flex; gap: 0.5rem; }
+        .inline-fields input { flex: 1; }
+        .inline-fields select { width: auto; min-width: 120px; }
 
         /* Items list */
         .item {
@@ -80,11 +102,10 @@
             margin-bottom: 0.75rem;
             position: relative;
         }
-        .item input, .item textarea { margin-bottom: 0.5rem; }
+        .item input, .item textarea, .item select { margin-bottom: 0.5rem; }
+        .item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+        .item-title { font-weight: 500; font-size: 0.9rem; }
         .remove-btn {
-            position: absolute;
-            top: 0.5rem;
-            right: 0.5rem;
             background: none;
             border: none;
             color: #c45d3a;
@@ -107,6 +128,32 @@
         }
         .add-btn:hover { border-color: #2d5a3d; color: #2d5a3d; }
 
+        /* Page list */
+        .page-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f9f9f9;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+        .page-item-info { flex: 1; }
+        .page-item-title { font-weight: 500; }
+        .page-item-slug { font-size: 0.8rem; color: #666; }
+        .page-item-actions { display: flex; gap: 0.5rem; }
+        .btn-small {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .btn-edit { background: #e8e8e8; color: #333; }
+        .btn-edit:hover { background: #ddd; }
+        .btn-delete { background: #fde8e8; color: #c45d3a; }
+        .btn-delete:hover { background: #fcd8d8; }
+
         /* Save button */
         .save-bar {
             position: fixed;
@@ -119,6 +166,7 @@
             display: flex;
             justify-content: center;
             gap: 1rem;
+            z-index: 100;
         }
         .save-btn {
             padding: 0.75rem 2rem;
@@ -146,11 +194,46 @@
             border-radius: 6px;
             cursor: pointer;
             color: #666;
+            z-index: 101;
         }
         .logout-btn:hover { border-color: #c45d3a; color: #c45d3a; }
 
-        /* Space for save bar */
         body { padding-bottom: 5rem; }
+
+        /* Page editor modal */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        .modal-header h2 { margin: 0; border: none; padding: 0; }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #999;
+        }
+        .modal-actions { display: flex; gap: 1rem; margin-top: 1.5rem; }
+        .btn-primary { background: #2d5a3d; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 8px; cursor: pointer; }
+        .btn-primary:hover { background: #1e3d29; }
+        .btn-secondary { background: #e8e8e8; color: #333; padding: 0.75rem 1.5rem; border: none; border-radius: 8px; cursor: pointer; }
+        .btn-secondary:hover { background: #ddd; }
     </style>
 </head>
 <body>
@@ -169,45 +252,102 @@
         <button class="logout-btn" onclick="logout()">Logout</button>
 
         <h1>Content Manager</h1>
-        <p class="subtitle">Edit your website content below</p>
+        <p class="subtitle">Edit your website content</p>
 
-        <!-- About Section -->
-        <div class="section">
-            <h2>About</h2>
-            <label>Paragraph 1</label>
-            <textarea id="about-p1" placeholder="First paragraph..."></textarea>
-            <label>Paragraph 2</label>
-            <textarea id="about-p2" placeholder="Second paragraph..."></textarea>
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('home')">Home Page</button>
+            <button class="tab" onclick="showTab('pages')">Pages</button>
         </div>
 
-        <!-- Projects Section -->
-        <div class="section">
-            <h2>Projects</h2>
-            <div id="projects-container"></div>
-            <button class="add-btn" onclick="addProject()">+ Add Project</button>
+        <!-- Home Page Tab -->
+        <div id="tab-home" class="tab-content active">
+            <!-- About Section -->
+            <div class="section">
+                <h2>About</h2>
+                <label>Paragraph 1</label>
+                <textarea id="about-p1" placeholder="First paragraph..."></textarea>
+                <label>Paragraph 2</label>
+                <textarea id="about-p2" placeholder="Second paragraph..."></textarea>
+            </div>
+
+            <!-- Projects Section -->
+            <div class="section">
+                <h2>Projects</h2>
+                <p style="color: #666; font-size: 0.85rem; margin-bottom: 1rem;">
+                    Link to external URLs or internal pages you create in the Pages tab
+                </p>
+                <div id="projects-container"></div>
+                <button class="add-btn" onclick="addProject()">+ Add Project</button>
+            </div>
+
+            <!-- Writing Section -->
+            <div class="section">
+                <h2>Writing</h2>
+                <div id="writing-container"></div>
+                <button class="add-btn" onclick="addWriting()">+ Add Post</button>
+            </div>
+
+            <!-- Mixes Section -->
+            <div class="section">
+                <h2>Mixes</h2>
+                <p style="color: #666; font-size: 0.85rem; margin-bottom: 1rem;">
+                    Get embed URLs from Mixcloud: Share → Embed → copy the src URL
+                </p>
+                <div id="mixes-container"></div>
+                <button class="add-btn" onclick="addMix()">+ Add Mix</button>
+            </div>
+
+            <!-- Contact Section -->
+            <div class="section">
+                <h2>Contact Links</h2>
+                <div id="contact-container"></div>
+                <button class="add-btn" onclick="addContact()">+ Add Link</button>
+            </div>
         </div>
 
-        <!-- Writing Section -->
-        <div class="section">
-            <h2>Writing</h2>
-            <div id="writing-container"></div>
-            <button class="add-btn" onclick="addWriting()">+ Add Post</button>
+        <!-- Pages Tab -->
+        <div id="tab-pages" class="tab-content">
+            <div class="section">
+                <h2>Your Pages</h2>
+                <p style="color: #666; font-size: 0.85rem; margin-bottom: 1rem;">
+                    Create pages for projects, blog posts, or anything else. Link to them using: <code>page.html?p=your-slug</code>
+                </p>
+                <div id="pages-list"></div>
+                <button class="add-btn" onclick="openPageEditor()">+ Create New Page</button>
+            </div>
         </div>
+    </div>
 
-        <!-- Mixes Section -->
-        <div class="section">
-            <h2>Mixes</h2>
-            <p style="color: #666; font-size: 0.85rem; margin-bottom: 1rem;">
-                Get embed URLs from Mixcloud: Share → Embed → copy the src URL from the iframe
-            </p>
-            <div id="mixes-container"></div>
-            <button class="add-btn" onclick="addMix()">+ Add Mix</button>
+    <!-- Page Editor Modal -->
+    <div class="modal" id="page-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Create Page</h2>
+                <button class="modal-close" onclick="closePageEditor()">×</button>
+            </div>
+            <label>Page Title</label>
+            <input type="text" id="page-title" placeholder="My Awesome Project">
+            <label>URL Slug <span class="label-hint">(letters, numbers, hyphens only)</span></label>
+            <input type="text" id="page-slug" placeholder="my-awesome-project" oninput="this.value = this.value.toLowerCase().replace(/[^a-z0-9-]/g, '')">
+            <label>Content <span class="label-hint">(HTML supported)</span></label>
+            <textarea id="page-content" class="large" placeholder="Write your page content here...
+
+You can use HTML tags like:
+<h2>Heading</h2>
+<p>Paragraph text</p>
+<a href='https://example.com'>Link</a>
+<img src='image-url.jpg' alt='description'>"></textarea>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="closePageEditor()">Cancel</button>
+                <button class="btn-primary" onclick="savePage()">Save Page</button>
+            </div>
         </div>
     </div>
 
     <!-- Save Bar -->
     <div class="save-bar" id="save-bar" style="display: none;">
-        <button class="save-btn" onclick="saveContent()">Save Changes</button>
+        <button class="save-btn" onclick="saveContent()">Save Home Page</button>
         <span id="save-status" class="status"></span>
     </div>
 
@@ -216,7 +356,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
     <script>
-        // Firebase config (same as main site)
         const FIREBASE_CONFIG = {
             apiKey: "AIzaSyCFKStIkbW_omKXd7TQb3jUVuBJA4g3zqo",
             authDomain: "scottfriedman-f400d.firebaseapp.com",
@@ -227,15 +366,14 @@
             appId: "1:1046658110090:web:49a24a0ff13b19cb111373"
         };
 
-        // Password (base64 encoded for minimal obfuscation)
-        const PASSWORD = atob('cWpuTmdraTFST25E'); // qjnNgki1ROnD
+        const PASSWORD = atob('cWpuTmdraTFST25E');
 
         firebase.initializeApp(FIREBASE_CONFIG);
         const db = firebase.database();
 
+        // Auth
         function login() {
-            const pwd = document.getElementById('password-input').value;
-            if (pwd === PASSWORD) {
+            if (document.getElementById('password-input').value === PASSWORD) {
                 localStorage.setItem('admin_auth', 'true');
                 showAdmin();
             } else {
@@ -253,25 +391,29 @@
             document.getElementById('admin-panel').style.display = 'block';
             document.getElementById('save-bar').style.display = 'flex';
             loadCurrentContent();
+            loadPages();
         }
 
-        // Check auth on load
         document.getElementById('password-input').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') login();
         });
 
-        if (localStorage.getItem('admin_auth') === 'true') {
-            showAdmin();
+        if (localStorage.getItem('admin_auth') === 'true') showAdmin();
+
+        // Tabs
+        function showTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector(`[onclick="showTab('${tab}')"]`).classList.add('active');
+            document.getElementById(`tab-${tab}`).classList.add('active');
         }
 
-        // Default content (matches what's in index.html)
+        // Defaults
         const DEFAULTS = {
-            about: {
-                paragraphs: [
-                    "Hi, I'm Scott. I like building things on the internet, digging for records, and making playlists for no one in particular. Currently based somewhere with decent coffee.",
-                    "This is my corner of the web. It's simple on purpose."
-                ]
-            },
+            about: { paragraphs: [
+                "Hi, I'm Scott. I like building things on the internet, digging for records, and making playlists for no one in particular. Currently based somewhere with decent coffee.",
+                "This is my corner of the web. It's simple on purpose."
+            ]},
             projects: [
                 { title: "project one", desc: "a thing that does something cool", link: "#" },
                 { title: "project two", desc: "another thing, equally cool", link: "#" },
@@ -285,134 +427,218 @@
             ],
             mixes: [
                 { title: "Latest Mix", embedUrl: "https://player-widget.mixcloud.com/widget/iframe/?hide_cover=1&mini=1&feed=%2Ffriedmannn%2F" }
+            ],
+            contact: [
+                { name: "mixcloud", url: "https://www.mixcloud.com/friedmannn/" },
+                { name: "github", url: "#" },
+                { name: "email", url: "#" }
             ]
         };
 
-        // Content management
-        let projects = [];
-        let writing = [];
-        let mixes = [];
+        let projects = [], writing = [], mixes = [], contact = [], pages = [];
+        let editingPageSlug = null;
 
         function loadCurrentContent() {
             db.ref('content').once('value').then((snapshot) => {
-                const content = snapshot.val();
+                const data = snapshot.val() || DEFAULTS;
 
-                // Use Firebase content if exists, otherwise use defaults
-                const data = content || DEFAULTS;
-
-                // About
-                const aboutParas = (data.about && data.about.paragraphs) || DEFAULTS.about.paragraphs;
+                const aboutParas = (data.about?.paragraphs) || DEFAULTS.about.paragraphs;
                 document.getElementById('about-p1').value = aboutParas[0] || '';
                 document.getElementById('about-p2').value = aboutParas[1] || '';
 
-                // Projects
-                projects = (data.projects && data.projects.length > 0) ? data.projects : DEFAULTS.projects;
+                projects = data.projects?.length ? data.projects : DEFAULTS.projects;
+                writing = data.writing?.length ? data.writing : DEFAULTS.writing;
+                mixes = data.mixes?.length ? data.mixes : DEFAULTS.mixes;
+                contact = data.contact?.length ? data.contact : DEFAULTS.contact;
+
                 renderProjects();
-
-                // Writing
-                writing = (data.writing && data.writing.length > 0) ? data.writing : DEFAULTS.writing;
                 renderWriting();
-
-                // Mixes
-                mixes = (data.mixes && data.mixes.length > 0) ? data.mixes : DEFAULTS.mixes;
                 renderMixes();
+                renderContact();
             }).catch(() => {
-                // If Firebase fails, load defaults
                 document.getElementById('about-p1').value = DEFAULTS.about.paragraphs[0];
                 document.getElementById('about-p2').value = DEFAULTS.about.paragraphs[1];
                 projects = DEFAULTS.projects;
                 writing = DEFAULTS.writing;
                 mixes = DEFAULTS.mixes;
+                contact = DEFAULTS.contact;
                 renderProjects();
                 renderWriting();
                 renderMixes();
+                renderContact();
             });
         }
 
         // Projects
         function renderProjects() {
-            const container = document.getElementById('projects-container');
-            container.innerHTML = projects.map((p, i) => `
+            document.getElementById('projects-container').innerHTML = projects.map((p, i) => `
                 <div class="item">
-                    <button class="remove-btn" onclick="removeProject(${i})">×</button>
-                    <input type="text" placeholder="Title" value="${p.title || ''}" onchange="projects[${i}].title = this.value">
-                    <input type="text" placeholder="Description" value="${p.desc || ''}" onchange="projects[${i}].desc = this.value">
-                    <input type="text" placeholder="Link (optional)" value="${p.link || ''}" onchange="projects[${i}].link = this.value">
+                    <div class="item-header">
+                        <span class="item-title">Project ${i + 1}</span>
+                        <button class="remove-btn" onclick="removeProject(${i})">×</button>
+                    </div>
+                    <input type="text" placeholder="Title" value="${esc(p.title)}" onchange="projects[${i}].title = this.value">
+                    <input type="text" placeholder="Description" value="${esc(p.desc)}" onchange="projects[${i}].desc = this.value">
+                    <div class="inline-fields">
+                        <input type="text" placeholder="Link URL (external) or page slug (internal)" value="${esc(p.link)}" onchange="projects[${i}].link = this.value">
+                    </div>
                 </div>
             `).join('');
         }
-
-        function addProject() {
-            projects.push({ title: '', desc: '', link: '' });
-            renderProjects();
-        }
-
-        function removeProject(i) {
-            projects.splice(i, 1);
-            renderProjects();
-        }
+        function addProject() { projects.push({ title: '', desc: '', link: '' }); renderProjects(); }
+        function removeProject(i) { projects.splice(i, 1); renderProjects(); }
 
         // Writing
         function renderWriting() {
-            const container = document.getElementById('writing-container');
-            container.innerHTML = writing.map((w, i) => `
+            document.getElementById('writing-container').innerHTML = writing.map((w, i) => `
                 <div class="item">
-                    <button class="remove-btn" onclick="removeWriting(${i})">×</button>
-                    <input type="text" placeholder="Date (e.g., 2024.12)" value="${w.date || ''}" onchange="writing[${i}].date = this.value">
-                    <input type="text" placeholder="Title" value="${w.title || ''}" onchange="writing[${i}].title = this.value">
-                    <input type="text" placeholder="Link (optional)" value="${w.link || ''}" onchange="writing[${i}].link = this.value">
+                    <div class="item-header">
+                        <span class="item-title">Post ${i + 1}</span>
+                        <button class="remove-btn" onclick="removeWriting(${i})">×</button>
+                    </div>
+                    <div class="inline-fields">
+                        <input type="text" placeholder="Date (e.g., 2024.12)" value="${esc(w.date)}" onchange="writing[${i}].date = this.value" style="max-width: 120px;">
+                        <input type="text" placeholder="Title" value="${esc(w.title)}" onchange="writing[${i}].title = this.value">
+                    </div>
+                    <input type="text" placeholder="Link URL or page slug" value="${esc(w.link)}" onchange="writing[${i}].link = this.value">
                 </div>
             `).join('');
         }
-
-        function addWriting() {
-            writing.push({ date: '', title: '', link: '' });
-            renderWriting();
-        }
-
-        function removeWriting(i) {
-            writing.splice(i, 1);
-            renderWriting();
-        }
+        function addWriting() { writing.push({ date: '', title: '', link: '' }); renderWriting(); }
+        function removeWriting(i) { writing.splice(i, 1); renderWriting(); }
 
         // Mixes
         function renderMixes() {
-            const container = document.getElementById('mixes-container');
-            container.innerHTML = mixes.map((m, i) => `
+            document.getElementById('mixes-container').innerHTML = mixes.map((m, i) => `
                 <div class="item">
-                    <button class="remove-btn" onclick="removeMix(${i})">×</button>
-                    <input type="text" placeholder="Title (optional)" value="${m.title || ''}" onchange="mixes[${i}].title = this.value">
-                    <input type="text" placeholder="Mixcloud Embed URL" value="${m.embedUrl || ''}" onchange="mixes[${i}].embedUrl = this.value">
+                    <div class="item-header">
+                        <span class="item-title">Mix ${i + 1}</span>
+                        <button class="remove-btn" onclick="removeMix(${i})">×</button>
+                    </div>
+                    <input type="text" placeholder="Title (optional)" value="${esc(m.title)}" onchange="mixes[${i}].title = this.value">
+                    <input type="text" placeholder="Mixcloud Embed URL" value="${esc(m.embedUrl)}" onchange="mixes[${i}].embedUrl = this.value">
+                </div>
+            `).join('');
+        }
+        function addMix() { mixes.push({ title: '', embedUrl: '' }); renderMixes(); }
+        function removeMix(i) { mixes.splice(i, 1); renderMixes(); }
+
+        // Contact
+        function renderContact() {
+            document.getElementById('contact-container').innerHTML = contact.map((c, i) => `
+                <div class="item">
+                    <div class="item-header">
+                        <span class="item-title">Link ${i + 1}</span>
+                        <button class="remove-btn" onclick="removeContact(${i})">×</button>
+                    </div>
+                    <div class="inline-fields">
+                        <input type="text" placeholder="Name (e.g., github)" value="${esc(c.name)}" onchange="contact[${i}].name = this.value" style="max-width: 150px;">
+                        <input type="text" placeholder="URL" value="${esc(c.url)}" onchange="contact[${i}].url = this.value">
+                    </div>
+                </div>
+            `).join('');
+        }
+        function addContact() { contact.push({ name: '', url: '' }); renderContact(); }
+        function removeContact(i) { contact.splice(i, 1); renderContact(); }
+
+        // Pages
+        function loadPages() {
+            db.ref('pages').once('value').then((snapshot) => {
+                pages = [];
+                snapshot.forEach((child) => {
+                    pages.push({ slug: child.key, ...child.val() });
+                });
+                renderPages();
+            });
+        }
+
+        function renderPages() {
+            const container = document.getElementById('pages-list');
+            if (pages.length === 0) {
+                container.innerHTML = '<p style="color: #999; text-align: center; padding: 2rem;">No pages yet. Create your first page!</p>';
+                return;
+            }
+            container.innerHTML = pages.map(p => `
+                <div class="page-item">
+                    <div class="page-item-info">
+                        <div class="page-item-title">${esc(p.title)}</div>
+                        <div class="page-item-slug">page.html?p=${p.slug}</div>
+                    </div>
+                    <div class="page-item-actions">
+                        <button class="btn-small btn-edit" onclick="editPage('${p.slug}')">Edit</button>
+                        <button class="btn-small btn-delete" onclick="deletePage('${p.slug}')">Delete</button>
+                    </div>
                 </div>
             `).join('');
         }
 
-        function addMix() {
-            mixes.push({ title: '', embedUrl: '' });
-            renderMixes();
+        function openPageEditor(slug = null) {
+            editingPageSlug = slug;
+            document.getElementById('modal-title').textContent = slug ? 'Edit Page' : 'Create Page';
+
+            if (slug) {
+                const page = pages.find(p => p.slug === slug);
+                document.getElementById('page-title').value = page?.title || '';
+                document.getElementById('page-slug').value = slug;
+                document.getElementById('page-slug').disabled = true;
+                document.getElementById('page-content').value = page?.content || '';
+            } else {
+                document.getElementById('page-title').value = '';
+                document.getElementById('page-slug').value = '';
+                document.getElementById('page-slug').disabled = false;
+                document.getElementById('page-content').value = '';
+            }
+
+            document.getElementById('page-modal').classList.add('active');
         }
 
-        function removeMix(i) {
-            mixes.splice(i, 1);
-            renderMixes();
+        function closePageEditor() {
+            document.getElementById('page-modal').classList.remove('active');
+            editingPageSlug = null;
         }
 
-        // Save
+        function editPage(slug) {
+            openPageEditor(slug);
+        }
+
+        function savePage() {
+            const title = document.getElementById('page-title').value.trim();
+            const slug = document.getElementById('page-slug').value.trim();
+            const content = document.getElementById('page-content').value;
+
+            if (!title || !slug) {
+                alert('Please fill in title and slug');
+                return;
+            }
+
+            db.ref('pages/' + slug).set({ title, content })
+                .then(() => {
+                    closePageEditor();
+                    loadPages();
+                })
+                .catch(err => alert('Error: ' + err.message));
+        }
+
+        function deletePage(slug) {
+            if (!confirm('Delete this page?')) return;
+            db.ref('pages/' + slug).remove().then(() => loadPages());
+        }
+
+        // Save home content
         function saveContent() {
             const status = document.getElementById('save-status');
             status.textContent = 'Saving...';
             status.className = 'status';
 
             const content = {
-                about: {
-                    paragraphs: [
-                        document.getElementById('about-p1').value,
-                        document.getElementById('about-p2').value
-                    ].filter(p => p.trim())
-                },
+                about: { paragraphs: [
+                    document.getElementById('about-p1').value,
+                    document.getElementById('about-p2').value
+                ].filter(p => p.trim()) },
                 projects: projects.filter(p => p.title.trim()),
                 writing: writing.filter(w => w.title.trim()),
-                mixes: mixes.filter(m => m.embedUrl.trim())
+                mixes: mixes.filter(m => m.embedUrl.trim()),
+                contact: contact.filter(c => c.name.trim())
             };
 
             db.ref('content').set(content)
@@ -421,11 +647,13 @@
                     status.className = 'status success';
                     setTimeout(() => { status.textContent = ''; }, 2000);
                 })
-                .catch((err) => {
+                .catch(err => {
                     status.textContent = 'Error: ' + err.message;
                     status.className = 'status error';
                 });
         }
+
+        function esc(str) { return (str || '').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
     </script>
 </body>
 </html>
