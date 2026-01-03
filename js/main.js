@@ -447,4 +447,64 @@
     console.log('✎ draw anywhere on the page!');
     console.log('tip: the colors flow through forest → terracotta → earth → warm gray');
 
+    // ==========================================================================
+    // Content Loading from Firebase
+    // ==========================================================================
+    function loadContent() {
+        if (!FIREBASE_CONFIG.apiKey) return;
+
+        const contentRef = firebase.database().ref('content');
+        contentRef.once('value').then((snapshot) => {
+            const content = snapshot.val();
+            if (!content) return;
+
+            // Load About section
+            if (content.about) {
+                const aboutEl = document.getElementById('about-content');
+                if (aboutEl && content.about.paragraphs) {
+                    aboutEl.innerHTML = content.about.paragraphs
+                        .map(p => `<p>${p}</p>`)
+                        .join('');
+                }
+            }
+
+            // Load Projects
+            if (content.projects && content.projects.length > 0) {
+                const projectsEl = document.getElementById('projects-list');
+                if (projectsEl) {
+                    projectsEl.innerHTML = content.projects
+                        .map(p => `<li><a href="${p.link || '#'}">${p.title}</a><span class="desc">— ${p.desc}</span></li>`)
+                        .join('');
+                }
+            }
+
+            // Load Writing
+            if (content.writing && content.writing.length > 0) {
+                const writingEl = document.getElementById('writing-list');
+                if (writingEl) {
+                    writingEl.innerHTML = content.writing
+                        .map(w => `<li><span class="date">${w.date}</span><a href="${w.link || '#'}">${w.title}</a></li>`)
+                        .join('');
+                }
+            }
+
+            // Load Mixes
+            if (content.mixes && content.mixes.length > 0) {
+                const mixesEl = document.getElementById('mixes-list');
+                if (mixesEl) {
+                    mixesEl.innerHTML = content.mixes
+                        .map(m => `<div class="mix-embed"><iframe width="100%" height="60" src="${m.embedUrl}" frameborder="0"></iframe></div>`)
+                        .join('');
+                }
+            }
+        }).catch(err => {
+            console.log('Content load failed, using defaults:', err);
+        });
+    }
+
+    // Load content after Firebase is ready
+    if (FIREBASE_CONFIG.apiKey) {
+        loadContent();
+    }
+
 })();
