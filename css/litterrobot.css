@@ -1,0 +1,242 @@
+/* ==========================================================================
+   LitterRobot Dashboard Styles
+   ========================================================================== */
+
+/* Dashboard Grid */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+@media (max-width: 500px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Dashboard Cards */
+.dashboard-card {
+    background: var(--light);
+    border-radius: 8px;
+    padding: 1.25rem;
+    pointer-events: auto;
+}
+
+.dashboard-card h3 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--gray);
+    margin-bottom: 0.75rem;
+    font-weight: 500;
+}
+
+/* Status Badge */
+.status-display {
+    margin-bottom: 0.5rem;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.status-badge.loading {
+    background: var(--light);
+    color: var(--gray);
+}
+
+.status-badge.ready {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-badge.cycling {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-badge.drawer-full {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.status-badge.offline {
+    background: #e2e3e5;
+    color: #383d41;
+}
+
+.status-badge.error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.last-updated {
+    font-size: 0.75rem;
+    color: var(--gray-light);
+    margin: 0;
+}
+
+/* Waste Level Progress Bar */
+.waste-level {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 24px;
+    background: var(--white);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #ddd;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent) 0%, var(--accent-light) 100%);
+    border-radius: 12px;
+    transition: width 0.5s ease, background 0.3s ease;
+}
+
+.progress-fill.warning {
+    background: linear-gradient(90deg, #f0ad4e 0%, #ec971f 100%);
+}
+
+.progress-fill.danger {
+    background: linear-gradient(90deg, var(--warm) 0%, #a33d1a 100%);
+}
+
+.waste-percent {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--black);
+    min-width: 3.5rem;
+    text-align: right;
+}
+
+/* Stats Row */
+.stats-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    pointer-events: auto;
+}
+
+.stat-item {
+    flex: 1;
+    min-width: 120px;
+    background: var(--light);
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+}
+
+.stat-label {
+    display: block;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--gray);
+    margin-bottom: 0.25rem;
+}
+
+.stat-value {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--black);
+}
+
+/* Charts Section */
+#charts {
+    pointer-events: auto;
+}
+
+#charts h2 {
+    margin-bottom: 1.5rem;
+}
+
+.chart-container {
+    background: var(--light);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.chart-container h3 {
+    font-size: 0.9rem;
+    color: var(--black);
+    margin-bottom: 1rem;
+    font-weight: 500;
+}
+
+.chart-container canvas {
+    max-height: 250px;
+}
+
+.chart-note {
+    font-size: 0.75rem;
+    color: var(--gray-light);
+    text-align: center;
+    margin: 0.75rem 0 0 0;
+}
+
+/* No Data State */
+.no-data {
+    text-align: center;
+    padding: 2rem;
+    color: var(--gray);
+}
+
+.no-data p {
+    margin-bottom: 0.5rem;
+}
+
+.no-data .hint {
+    font-size: 0.85rem;
+    color: var(--gray-light);
+}
+
+/* Pulse animation for live indicator */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.live-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    margin-right: 0.5rem;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+/* Responsive adjustments */
+@media (max-width: 500px) {
+    .stats-row {
+        flex-direction: column;
+    }
+
+    .stat-item {
+        min-width: auto;
+    }
+
+    .waste-level {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+
+    .waste-percent {
+        text-align: center;
+    }
+}
