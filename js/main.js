@@ -450,6 +450,50 @@
     // ==========================================================================
     // Content Loading from Firebase
     // ==========================================================================
+
+    // Helper function to render different audio embed types
+    function renderSoundEmbed(sound) {
+        const { title, type, url, artist } = sound;
+        let embedHtml = '';
+
+        // Build the title/artist header
+        let header = '';
+        if (title || artist) {
+            header = `<div class="sound-info">`;
+            if (title) header += `<span class="sound-title">${title}</span>`;
+            if (artist) header += `<span class="sound-artist">${artist}</span>`;
+            header += `</div>`;
+        }
+
+        switch (type) {
+            case 'mixcloud':
+            case 'bandcamp':
+                embedHtml = `<iframe width="100%" height="120" src="${url}" frameborder="0" allow="autoplay"></iframe>`;
+                break;
+
+            case 'dropbox':
+                // Convert Dropbox share link to direct link
+                let directUrl = url;
+                if (url.includes('dropbox.com')) {
+                    directUrl = url
+                        .replace('www.dropbox.com', 'dl.dropboxusercontent.com')
+                        .replace('?dl=0', '')
+                        .replace('?dl=1', '');
+                }
+                embedHtml = `<audio controls preload="metadata"><source src="${directUrl}" type="audio/mpeg">Your browser does not support audio.</audio>`;
+                break;
+
+            case 'audio':
+                embedHtml = `<audio controls preload="metadata"><source src="${url}">Your browser does not support audio.</audio>`;
+                break;
+
+            default:
+                embedHtml = `<iframe width="100%" height="120" src="${url}" frameborder="0"></iframe>`;
+        }
+
+        return `<div class="sound-embed">${header}${embedHtml}</div>`;
+    }
+
     function loadContent() {
         if (!FIREBASE_CONFIG.apiKey) return;
 
@@ -504,13 +548,18 @@
                 }
             }
 
-            // Load Mixes
-            if (content.mixes && content.mixes.length > 0) {
-                const mixesEl = document.getElementById('mixes-list');
-                if (mixesEl) {
-                    mixesEl.innerHTML = content.mixes
-                        .map(m => `<div class="mix-embed"><iframe width="100%" height="60" src="${m.embedUrl}" frameborder="0"></iframe></div>`)
-                        .join('');
+            // Load Sounds (supports legacy mixes format)
+            const soundsData = content.sounds || (content.mixes ? content.mixes.map(m => ({
+                title: m.title || '',
+                type: 'mixcloud',
+                url: m.embedUrl || '',
+                artist: ''
+            })) : []);
+
+            if (soundsData.length > 0) {
+                const soundsEl = document.getElementById('sounds-list');
+                if (soundsEl) {
+                    soundsEl.innerHTML = soundsData.map(s => renderSoundEmbed(s)).join('');
                 }
             }
 

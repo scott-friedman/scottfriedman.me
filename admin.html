@@ -288,14 +288,14 @@
                 <button class="add-btn" onclick="addWriting()">+ Add Post</button>
             </div>
 
-            <!-- Mixes Section -->
+            <!-- Sounds Section -->
             <div class="section">
-                <h2>Mixes</h2>
+                <h2>Sounds</h2>
                 <p style="color: #666; font-size: 0.85rem; margin-bottom: 1rem;">
-                    Get embed URLs from Mixcloud: Share → Embed → copy the src URL
+                    Add audio from Mixcloud, Bandcamp, Dropbox, or direct audio URLs
                 </p>
-                <div id="mixes-container"></div>
-                <button class="add-btn" onclick="addMix()">+ Add Mix</button>
+                <div id="sounds-container"></div>
+                <button class="add-btn" onclick="addSound()">+ Add Sound</button>
             </div>
 
             <!-- Contact Section -->
@@ -425,8 +425,8 @@ You can use HTML tags like:
                 { date: "2024.11", title: "the joy of building useless things", link: "#" },
                 { date: "2024.10", title: "music discovery in the algorithm age", link: "#" }
             ],
-            mixes: [
-                { title: "Latest Mix", embedUrl: "https://player-widget.mixcloud.com/widget/iframe/?hide_cover=1&mini=1&feed=%2Ffriedmannn%2F" }
+            sounds: [
+                { title: "Latest Mix", type: "mixcloud", url: "https://player-widget.mixcloud.com/widget/iframe/?hide_cover=1&mini=1&feed=%2Ffriedmannn%2F", artist: "" }
             ],
             contact: [
                 { name: "mixcloud", url: "https://www.mixcloud.com/friedmannn/" },
@@ -435,7 +435,7 @@ You can use HTML tags like:
             ]
         };
 
-        let projects = [], writing = [], mixes = [], contact = [], pages = [];
+        let projects = [], writing = [], sounds = [], contact = [], pages = [];
         let editingPageSlug = null;
 
         function loadCurrentContent() {
@@ -448,23 +448,30 @@ You can use HTML tags like:
 
                 projects = data.projects?.length ? data.projects : DEFAULTS.projects;
                 writing = data.writing?.length ? data.writing : DEFAULTS.writing;
-                mixes = data.mixes?.length ? data.mixes : DEFAULTS.mixes;
+                // Support legacy mixes format, convert to sounds
+                if (data.sounds?.length) {
+                    sounds = data.sounds;
+                } else if (data.mixes?.length) {
+                    sounds = data.mixes.map(m => ({ title: m.title || '', type: 'mixcloud', url: m.embedUrl || '', artist: '' }));
+                } else {
+                    sounds = DEFAULTS.sounds;
+                }
                 contact = data.contact?.length ? data.contact : DEFAULTS.contact;
 
                 renderProjects();
                 renderWriting();
-                renderMixes();
+                renderSounds();
                 renderContact();
             }).catch(() => {
                 document.getElementById('about-p1').value = DEFAULTS.about.paragraphs[0];
                 document.getElementById('about-p2').value = DEFAULTS.about.paragraphs[1];
                 projects = DEFAULTS.projects;
                 writing = DEFAULTS.writing;
-                mixes = DEFAULTS.mixes;
+                sounds = DEFAULTS.sounds;
                 contact = DEFAULTS.contact;
                 renderProjects();
                 renderWriting();
-                renderMixes();
+                renderSounds();
                 renderContact();
             });
         }
@@ -507,21 +514,56 @@ You can use HTML tags like:
         function addWriting() { writing.push({ date: '', title: '', link: '' }); renderWriting(); }
         function removeWriting(i) { writing.splice(i, 1); renderWriting(); }
 
-        // Mixes
-        function renderMixes() {
-            document.getElementById('mixes-container').innerHTML = mixes.map((m, i) => `
+        // Sounds
+        function renderSounds() {
+            document.getElementById('sounds-container').innerHTML = sounds.map((s, i) => `
                 <div class="item">
                     <div class="item-header">
-                        <span class="item-title">Mix ${i + 1}</span>
-                        <button class="remove-btn" onclick="removeMix(${i})">×</button>
+                        <span class="item-title">Sound ${i + 1}</span>
+                        <button class="remove-btn" onclick="removeSound(${i})">×</button>
                     </div>
-                    <input type="text" placeholder="Title (optional)" value="${esc(m.title)}" onchange="mixes[${i}].title = this.value">
-                    <input type="text" placeholder="Mixcloud Embed URL" value="${esc(m.embedUrl)}" onchange="mixes[${i}].embedUrl = this.value">
+                    <div class="inline-fields">
+                        <input type="text" placeholder="Title" value="${esc(s.title)}" onchange="sounds[${i}].title = this.value">
+                        <input type="text" placeholder="Artist (optional)" value="${esc(s.artist || '')}" onchange="sounds[${i}].artist = this.value" style="max-width: 150px;">
+                    </div>
+                    <div class="inline-fields">
+                        <select onchange="sounds[${i}].type = this.value; updateSoundHelp(${i})">
+                            <option value="mixcloud" ${s.type === 'mixcloud' ? 'selected' : ''}>Mixcloud</option>
+                            <option value="bandcamp" ${s.type === 'bandcamp' ? 'selected' : ''}>Bandcamp</option>
+                            <option value="dropbox" ${s.type === 'dropbox' ? 'selected' : ''}>Dropbox</option>
+                            <option value="audio" ${s.type === 'audio' ? 'selected' : ''}>Direct Audio</option>
+                        </select>
+                        <input type="text" id="sound-url-${i}" placeholder="${getSoundPlaceholder(s.type)}" value="${esc(s.url)}" onchange="sounds[${i}].url = this.value">
+                    </div>
+                    <p id="sound-help-${i}" style="color: #999; font-size: 0.75rem; margin: 0;">${getSoundHelp(s.type)}</p>
                 </div>
             `).join('');
         }
-        function addMix() { mixes.push({ title: '', embedUrl: '' }); renderMixes(); }
-        function removeMix(i) { mixes.splice(i, 1); renderMixes(); }
+        function getSoundPlaceholder(type) {
+            switch(type) {
+                case 'mixcloud': return 'Mixcloud embed URL';
+                case 'bandcamp': return 'Bandcamp embed URL';
+                case 'dropbox': return 'Dropbox share link';
+                case 'audio': return 'Direct audio URL (.mp3, .wav)';
+                default: return 'URL';
+            }
+        }
+        function getSoundHelp(type) {
+            switch(type) {
+                case 'mixcloud': return 'Share → Embed → copy the src URL from the iframe';
+                case 'bandcamp': return 'Share/Embed → copy the src URL from the iframe';
+                case 'dropbox': return 'Paste the share link (e.g., dropbox.com/s/...) - it will auto-convert';
+                case 'audio': return 'Direct link to an audio file';
+                default: return '';
+            }
+        }
+        function updateSoundHelp(i) {
+            const type = sounds[i].type;
+            document.getElementById(`sound-url-${i}`).placeholder = getSoundPlaceholder(type);
+            document.getElementById(`sound-help-${i}`).textContent = getSoundHelp(type);
+        }
+        function addSound() { sounds.push({ title: '', type: 'mixcloud', url: '', artist: '' }); renderSounds(); }
+        function removeSound(i) { sounds.splice(i, 1); renderSounds(); }
 
         // Contact
         function renderContact() {
@@ -637,7 +679,7 @@ You can use HTML tags like:
                 ].filter(p => p.trim()) },
                 projects: projects.filter(p => p.title.trim()),
                 writing: writing.filter(w => w.title.trim()),
-                mixes: mixes.filter(m => m.embedUrl.trim()),
+                sounds: sounds.filter(s => s.url.trim()),
                 contact: contact.filter(c => c.name.trim())
             };
 
