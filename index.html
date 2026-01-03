@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>scott friedman</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Collaborative drawing canvas -->
+    <canvas id="whiteboard"></canvas>
+
+    <!-- Drawing hint -->
+    <div class="draw-hint">
+        <span class="hint-icon">✎</span>
+        <span class="hint-text">draw anywhere</span>
+    </div>
+
+    <!-- Subtle drawing toolbar -->
+    <div class="draw-toolbar">
+        <div class="toolbar-group sizes">
+            <button class="size-btn" data-size="2" title="Fine"><span></span></button>
+            <button class="size-btn active" data-size="4" title="Medium"><span></span></button>
+            <button class="size-btn" data-size="8" title="Thick"><span></span></button>
+        </div>
+        <div class="toolbar-divider"></div>
+        <div class="toolbar-group colors">
+            <button class="color-btn active" data-color="auto" title="Auto colors">
+                <span class="rainbow"></span>
+            </button>
+            <button class="color-btn" data-color="#2d5a3d" title="Forest"></button>
+            <button class="color-btn" data-color="#c45d3a" title="Terracotta"></button>
+            <button class="color-btn" data-color="#6b4423" title="Brown"></button>
+            <button class="color-btn" data-color="#5c5347" title="Warm gray"></button>
+        </div>
+        <div class="toolbar-divider"></div>
+        <div class="toolbar-group tools">
+            <button class="tool-btn" data-tool="eraser" title="Eraser">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 20H7L3 16c-.8-.8-.8-2 0-2.8L14.6 1.6c.8-.8 2-.8 2.8 0l5 5c.8.8.8 2 0 2.8L11 20"/>
+                </svg>
+            </button>
+            <button class="tool-btn" data-tool="clear" title="Clear all">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <main>
+        <header>
+            <h1>scott friedman</h1>
+            <p class="tagline">makes things, spins records, writes occasionally</p>
+        </header>
+
+        <nav>
+            <a href="#about">about</a>
+            <a href="#projects">projects</a>
+            <a href="#mixes">mixes</a>
+            <a href="#writing">writing</a>
+            <a href="#contact">contact</a>
+        </nav>
+
+        <hr>
+
+        <section id="about">
+            <h2>about</h2>
+            <p>
+                Hi, I'm Scott. I like building things on the internet,
+                digging for records, and making playlists for no one in particular.
+                Currently based somewhere with decent coffee.
+            </p>
+            <p>
+                This is my corner of the web. It's simple on purpose.
+            </p>
+        </section>
+
+        <hr>
+
+        <section id="projects">
+            <h2>projects</h2>
+            <ul>
+                <li>
+                    <a href="#">project one</a>
+                    <span class="desc">— a thing that does something cool</span>
+                </li>
+                <li>
+                    <a href="#">project two</a>
+                    <span class="desc">— another thing, equally cool</span>
+                </li>
+                <li>
+                    <a href="#">project three</a>
+                    <span class="desc">— weekend experiment gone right</span>
+                </li>
+                <li>
+                    <a href="#">side quest</a>
+                    <span class="desc">— still figuring this one out</span>
+                </li>
+            </ul>
+        </section>
+
+        <hr>
+
+        <section id="mixes">
+            <h2>mixes</h2>
+            <p>I make DJ mixes sometimes. Here's the latest:</p>
+            <div class="mix-embed">
+                <iframe width="100%" height="60" src="https://player-widget.mixcloud.com/widget/iframe/?hide_cover=1&mini=1&feed=%2Ffriedmannn%2F" frameborder="0"></iframe>
+            </div>
+            <p><a href="https://www.mixcloud.com/friedmannn/" target="_blank">more on mixcloud →</a></p>
+        </section>
+
+        <hr>
+
+        <section id="writing">
+            <h2>writing</h2>
+            <ul>
+                <li>
+                    <span class="date">2024.12</span>
+                    <a href="#">on finding your creative rhythm</a>
+                </li>
+                <li>
+                    <span class="date">2024.11</span>
+                    <a href="#">the joy of building useless things</a>
+                </li>
+                <li>
+                    <span class="date">2024.10</span>
+                    <a href="#">music discovery in the algorithm age</a>
+                </li>
+            </ul>
+        </section>
+
+        <hr>
+
+        <section id="contact">
+            <h2>say hi</h2>
+            <ul class="contact-links">
+                <li><a href="https://www.mixcloud.com/friedmannn/" target="_blank">mixcloud</a></li>
+                <li><a href="#">github</a></li>
+                <li><a href="#">email</a></li>
+            </ul>
+        </section>
+
+        <hr>
+
+        <footer>
+            <p>© 2024 scott friedman</p>
+            <p class="small">made with html, css, and questionable taste</p>
+        </footer>
+    </main>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <script src="js/main.js"></script>
+</body>
+</html>
