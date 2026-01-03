@@ -60,8 +60,8 @@ body::before {
 .mobile-draw-toggle {
     display: none;
     position: fixed;
-    bottom: 1.5rem;
-    right: 1.5rem;
+    top: 1rem;
+    right: 1rem;
     width: 48px;
     height: 48px;
     border: none;
