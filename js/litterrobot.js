@@ -38,6 +38,48 @@
         return firebase.database();
     }
 
+    // Status code to human-readable text mapping
+    const STATUS_MAP = {
+        // Common LitterRobot 4 status codes
+        'rdy': 'Ready',
+        'ccp': 'Cycle Complete',
+        'ccc': 'Cleaning',
+        'csf': 'Cat Sensor Fault',
+        'df1': 'Drawer Almost Full',
+        'df2': 'Drawer Full',
+        'dfs': 'Drawer Full',
+        'sdf': 'Drawer Full',
+        'dhf': 'Dump + Home Fault',
+        'dpf': 'Dump Position Fault',
+        'ec':  'Empty Cycle',
+        'hpf': 'Home Position Fault',
+        'off': 'Off',
+        'offline': 'Offline',
+        'otf': 'Over Torque Fault',
+        'p':   'Paused',
+        'pause': 'Paused',
+        'pd':  'Pinch Detect',
+        'spf': 'Sensor Position Fault',
+        'br':  'Bonnet Removed',
+        'csi': 'Cat Sensor Interrupted',
+        'cst': 'Cat Sensor Timing',
+        'cd':  'Cat Detected',
+        // Fallbacks for plain text statuses
+        'ready': 'Ready',
+        'clean cycle': 'Cleaning',
+        'cycling': 'Cleaning',
+        'drawer full': 'Drawer Full',
+        'idle': 'Ready',
+        'unknown': 'Unknown',
+        'unavailable': 'Offline'
+    };
+
+    function getReadableStatus(statusCode) {
+        if (!statusCode) return 'Unknown';
+        const lower = statusCode.toLowerCase().trim();
+        return STATUS_MAP[lower] || statusCode;
+    }
+
     // Format relative time
     function timeAgo(timestamp) {
         if (!timestamp) return '--';
@@ -68,11 +110,12 @@
             return;
         }
 
-        // Status badge
+        // Status badge - convert code to readable text
         const statusBadge = document.getElementById('status-badge');
-        const status = (data.status || 'Unknown').toLowerCase();
-        statusBadge.textContent = data.status || 'Unknown';
-        statusBadge.className = 'status-badge ' + getStatusClass(status);
+        const rawStatus = data.status || 'Unknown';
+        const readableStatus = getReadableStatus(rawStatus);
+        statusBadge.textContent = readableStatus;
+        statusBadge.className = 'status-badge ' + getStatusClass(readableStatus.toLowerCase());
 
         // Last updated
         const lastUpdated = document.getElementById('last-updated');
@@ -95,12 +138,12 @@
             lastCycle.textContent = '--';
         }
 
-        // Last weight
+        // Last weight (in lbs)
         const lastWeight = document.getElementById('last-weight');
         if (data.lastWeight) {
-            lastWeight.textContent = data.lastWeight.toFixed(1) + ' kg';
+            lastWeight.textContent = data.lastWeight.toFixed(1) + ' lbs';
         } else {
-            lastWeight.textContent = '-- kg';
+            lastWeight.textContent = '-- lbs';
         }
     }
 
@@ -254,7 +297,7 @@
             data: {
                 labels: labels,
                 datasets: [{
-                    label: 'Weight (kg)',
+                    label: 'Weight (lbs)',
                     data: weights,
                     backgroundColor: chartColors.secondaryLight,
                     borderColor: chartColors.secondary,
@@ -277,7 +320,7 @@
                     y: {
                         ticks: {
                             color: chartColors.gray,
-                            callback: (value) => value + ' kg'
+                            callback: (value) => value + ' lbs'
                         },
                         grid: {
                             color: chartColors.gridColor
