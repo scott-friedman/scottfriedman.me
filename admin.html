@@ -227,25 +227,15 @@
             appId: "1:1046658110090:web:49a24a0ff13b19cb111373"
         };
 
-        // Simple password hash (not super secure, but good enough for personal use)
-        const PASSWORD_HASH = 'a]1r6Tk'; // Hash of: qjnNgki1ROnD
+        // Password (base64 encoded for minimal obfuscation)
+        const PASSWORD = atob('cWpuTmdraTFST25E'); // qjnNgki1ROnD
 
         firebase.initializeApp(FIREBASE_CONFIG);
         const db = firebase.database();
 
-        // Auth
-        function simpleHash(str) {
-            let hash = 0;
-            for (let i = 0; i < str.length; i++) {
-                hash = ((hash << 5) - hash) + str.charCodeAt(i);
-                hash |= 0;
-            }
-            return btoa(hash.toString()).slice(0, 7);
-        }
-
         function login() {
             const pwd = document.getElementById('password-input').value;
-            if (simpleHash(pwd) === PASSWORD_HASH) {
+            if (pwd === PASSWORD) {
                 localStorage.setItem('admin_auth', 'true');
                 showAdmin();
             } else {
