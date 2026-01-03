@@ -264,6 +264,30 @@
             showAdmin();
         }
 
+        // Default content (matches what's in index.html)
+        const DEFAULTS = {
+            about: {
+                paragraphs: [
+                    "Hi, I'm Scott. I like building things on the internet, digging for records, and making playlists for no one in particular. Currently based somewhere with decent coffee.",
+                    "This is my corner of the web. It's simple on purpose."
+                ]
+            },
+            projects: [
+                { title: "project one", desc: "a thing that does something cool", link: "#" },
+                { title: "project two", desc: "another thing, equally cool", link: "#" },
+                { title: "project three", desc: "weekend experiment gone right", link: "#" },
+                { title: "side quest", desc: "still figuring this one out", link: "#" }
+            ],
+            writing: [
+                { date: "2024.12", title: "on finding your creative rhythm", link: "#" },
+                { date: "2024.11", title: "the joy of building useless things", link: "#" },
+                { date: "2024.10", title: "music discovery in the algorithm age", link: "#" }
+            ],
+            mixes: [
+                { title: "Latest Mix", embedUrl: "https://player-widget.mixcloud.com/widget/iframe/?hide_cover=1&mini=1&feed=%2Ffriedmannn%2F" }
+            ]
+        };
+
         // Content management
         let projects = [];
         let writing = [];
@@ -271,24 +295,36 @@
 
         function loadCurrentContent() {
             db.ref('content').once('value').then((snapshot) => {
-                const content = snapshot.val() || {};
+                const content = snapshot.val();
+
+                // Use Firebase content if exists, otherwise use defaults
+                const data = content || DEFAULTS;
 
                 // About
-                if (content.about && content.about.paragraphs) {
-                    document.getElementById('about-p1').value = content.about.paragraphs[0] || '';
-                    document.getElementById('about-p2').value = content.about.paragraphs[1] || '';
-                }
+                const aboutParas = (data.about && data.about.paragraphs) || DEFAULTS.about.paragraphs;
+                document.getElementById('about-p1').value = aboutParas[0] || '';
+                document.getElementById('about-p2').value = aboutParas[1] || '';
 
                 // Projects
-                projects = content.projects || [];
+                projects = (data.projects && data.projects.length > 0) ? data.projects : DEFAULTS.projects;
                 renderProjects();
 
                 // Writing
-                writing = content.writing || [];
+                writing = (data.writing && data.writing.length > 0) ? data.writing : DEFAULTS.writing;
                 renderWriting();
 
                 // Mixes
-                mixes = content.mixes || [];
+                mixes = (data.mixes && data.mixes.length > 0) ? data.mixes : DEFAULTS.mixes;
+                renderMixes();
+            }).catch(() => {
+                // If Firebase fails, load defaults
+                document.getElementById('about-p1').value = DEFAULTS.about.paragraphs[0];
+                document.getElementById('about-p2').value = DEFAULTS.about.paragraphs[1];
+                projects = DEFAULTS.projects;
+                writing = DEFAULTS.writing;
+                mixes = DEFAULTS.mixes;
+                renderProjects();
+                renderWriting();
                 renderMixes();
             });
         }
