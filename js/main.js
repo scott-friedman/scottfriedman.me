@@ -171,15 +171,16 @@
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.beginPath();
-        ctx.moveTo(points[0].x, points[0].y);
+        // Convert percentage coordinates to pixels
+        ctx.moveTo(points[0].x * canvas.width, points[0].y * canvas.height);
         for (let i = 1; i < points.length; i++) {
-            ctx.lineTo(points[i].x, points[i].y);
+            ctx.lineTo(points[i].x * canvas.width, points[i].y * canvas.height);
         }
         ctx.stroke();
         ctx.restore();
     }
 
-    // Get position including scroll offset (for absolute canvas)
+    // Get position as percentage of canvas (for cross-device compatibility)
     function getPos(e) {
         let clientX, clientY;
         if (e.touches) {
@@ -189,10 +190,18 @@
             clientX = e.clientX;
             clientY = e.clientY;
         }
-        // Add scroll offset since canvas is absolute positioned
+        // Return as percentage (0-1) for cross-device compatibility
         return {
-            x: clientX,
-            y: clientY + window.scrollY
+            x: clientX / canvas.width,
+            y: (clientY + window.scrollY) / canvas.height
+        };
+    }
+
+    // Convert percentage position to pixels for drawing
+    function toPixels(pos) {
+        return {
+            x: pos.x * canvas.width,
+            y: pos.y * canvas.height
         };
     }
 
@@ -201,13 +210,14 @@
         if (isMobile && !drawModeActive) return;
 
         isDrawing = true;
-        const pos = getPos(e);
-        lastX = pos.x;
-        lastY = pos.y;
+        const pos = getPos(e);  // percentage coordinates
+        const pixels = toPixels(pos);
+        lastX = pixels.x;
+        lastY = pixels.y;
 
         const color = isEraser ? 'rgba(250, 250, 250, 1)' : (fixedColor || getFlowingColor());
         currentStroke = [{
-            x: pos.x,
+            x: pos.x,  // store as percentage
             y: pos.y,
             color: color,
             width: isEraser ? lineWidth * 4 : lineWidth
@@ -227,7 +237,8 @@
         if (!isDrawing) return;
         e.preventDefault();
 
-        const pos = getPos(e);
+        const pos = getPos(e);  // percentage coordinates
+        const pixels = toPixels(pos);
 
         // Get current color (flowing or fixed)
         const color = isEraser ? 'rgba(250, 250, 250, 1)' : (fixedColor || getFlowingColor());
@@ -241,12 +252,12 @@
 
         ctx.beginPath();
         ctx.moveTo(lastX, lastY);
-        ctx.lineTo(pos.x, pos.y);
+        ctx.lineTo(pixels.x, pixels.y);
         ctx.stroke();
 
-        currentStroke.push({ x: pos.x, y: pos.y, color, width });
-        lastX = pos.x;
-        lastY = pos.y;
+        currentStroke.push({ x: pos.x, y: pos.y, color, width });  // store as percentage
+        lastX = pixels.x;
+        lastY = pixels.y;
 
         // Advance color for flowing effect
         if (autoColorMode && !isEraser) advanceColor();
