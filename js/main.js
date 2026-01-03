@@ -85,6 +85,8 @@
     const canvas = document.getElementById('whiteboard');
     const ctx = canvas.getContext('2d');
     const hint = document.querySelector('.draw-hint');
+    const toolbar = document.querySelector('.draw-toolbar');
+    const mobileToggle = document.querySelector('.mobile-draw-toggle');
 
     let isDrawing = false;
     let lastX = 0;
@@ -99,10 +101,30 @@
     let fixedColor = null;
     let isEraser = false;
 
+    // Mobile draw mode
+    let isMobile = window.matchMedia('(pointer: coarse)').matches;
+    let drawModeActive = !isMobile; // Desktop: always on, Mobile: off by default
+    let drawModeTimeout = null;
+
+    function getDocumentHeight() {
+        return Math.max(
+            document.body.scrollHeight,
+            document.body.offsetHeight,
+            document.documentElement.clientHeight,
+            document.documentElement.scrollHeight,
+            document.documentElement.offsetHeight
+        );
+    }
+
     function resizeCanvas() {
+        // Save existing drawing
         const imageData = canvas.width > 0 ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null;
+
+        // Size canvas to full document
         canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        canvas.height = getDocumentHeight();
+
+        // Restore drawing
         if (imageData) ctx.putImageData(imageData, 0, 0);
         setupContext();
     }
@@ -152,15 +174,26 @@
         ctx.restore();
     }
 
+    // Get position including scroll offset (for absolute canvas)
     function getPos(e) {
+        let clientX, clientY;
         if (e.touches) {
-            return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
         }
-        return { x: e.clientX, y: e.clientY };
+        // Add scroll offset since canvas is absolute positioned
+        return {
+            x: clientX,
+            y: clientY + window.scrollY
+        };
     }
 
     function startDrawing(e) {
         if (e.target !== canvas) return;
+        if (isMobile && !drawModeActive) return;
 
         isDrawing = true;
         const pos = getPos(e);
@@ -180,6 +213,9 @@
             hasDrawn = true;
             hint.classList.add('hidden');
         }
+
+        // Reset mobile timeout
+        if (isMobile) resetDrawModeTimeout();
     }
 
     function draw(e) {
@@ -209,6 +245,9 @@
 
         // Advance color for flowing effect
         if (autoColorMode && !isEraser) advanceColor();
+
+        // Reset mobile timeout
+        if (isMobile) resetDrawModeTimeout();
     }
 
     function stopDrawing() {
@@ -235,9 +274,59 @@
         }
     }
 
-    // Initialize canvas
+    // ==========================================================================
+    // Mobile Draw Mode Toggle
+    // ==========================================================================
+    function setDrawMode(active) {
+        drawModeActive = active;
+
+        if (mobileToggle) {
+            mobileToggle.classList.toggle('active', active);
+        }
+        if (toolbar) {
+            toolbar.classList.toggle('visible', active);
+        }
+        if (canvas) {
+            canvas.classList.toggle('draw-enabled', active);
+        }
+
+        if (active) {
+            resetDrawModeTimeout();
+        } else {
+            clearTimeout(drawModeTimeout);
+        }
+    }
+
+    function resetDrawModeTimeout() {
+        clearTimeout(drawModeTimeout);
+        // Auto-exit draw mode after 5 seconds of inactivity
+        drawModeTimeout = setTimeout(() => {
+            if (isMobile && !isDrawing) {
+                setDrawMode(false);
+            }
+        }, 5000);
+    }
+
+    if (mobileToggle) {
+        mobileToggle.addEventListener('click', () => {
+            setDrawMode(!drawModeActive);
+        });
+    }
+
+    // ==========================================================================
+    // Initialize Canvas
+    // ==========================================================================
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
+
+    // Also resize when content might change height
+    const resizeObserver = new ResizeObserver(() => {
+        const newHeight = getDocumentHeight();
+        if (canvas.height !== newHeight) {
+            resizeCanvas();
+        }
+    });
+    resizeObserver.observe(document.body);
 
     // Mouse events
     canvas.addEventListener('mousedown', startDrawing);

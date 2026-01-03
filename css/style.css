@@ -46,12 +46,79 @@ body::before {
     z-index: 1000;
 }
 
-/* Drawing canvas */
+/* Drawing canvas - absolute so it scrolls with page */
 #whiteboard {
-    position: fixed;
-    inset: 0;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
     z-index: 1;
     cursor: crosshair;
+}
+
+/* Mobile draw mode toggle */
+.mobile-draw-toggle {
+    display: none;
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    width: 48px;
+    height: 48px;
+    border: none;
+    border-radius: 50%;
+    background: var(--white);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    z-index: 101;
+    transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.mobile-draw-toggle:hover {
+    transform: scale(1.05);
+}
+
+.mobile-draw-toggle.active {
+    background: var(--accent);
+    color: white;
+}
+
+.mobile-draw-toggle .toggle-icon {
+    font-size: 1.25rem;
+}
+
+/* Show on touch devices */
+@media (pointer: coarse) {
+    .mobile-draw-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .draw-hint {
+        display: none;
+    }
+
+    /* Hide toolbar by default on mobile */
+    .draw-toolbar {
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(10px);
+    }
+
+    .draw-toolbar.visible {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(0);
+    }
+
+    /* Disable drawing by default on mobile */
+    #whiteboard {
+        pointer-events: none;
+    }
+
+    #whiteboard.draw-enabled {
+        pointer-events: auto;
+    }
 }
 
 /* Draw hint */
