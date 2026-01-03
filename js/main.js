@@ -474,13 +474,27 @@
             case 'dropbox':
                 // Convert Dropbox share link to direct link
                 let directUrl = url;
-                if (url.includes('dropbox.com')) {
+                if (url.includes('dropbox.com') || url.includes('dropboxusercontent.com')) {
                     directUrl = url
                         .replace('www.dropbox.com', 'dl.dropboxusercontent.com')
-                        .replace('?dl=0', '')
-                        .replace('?dl=1', '');
+                        .replace('&dl=0', '&dl=1')
+                        .replace('?dl=0', '?dl=1');
+                    // If no dl param, add it
+                    if (!directUrl.includes('dl=1')) {
+                        directUrl += (directUrl.includes('?') ? '&' : '?') + 'dl=1';
+                    }
                 }
-                embedHtml = `<audio controls preload="metadata"><source src="${directUrl}" type="audio/mpeg">Your browser does not support audio.</audio>`;
+                // Detect audio type from extension
+                const ext = directUrl.split('.').pop().split('?')[0].toLowerCase();
+                const mimeTypes = {
+                    'mp3': 'audio/mpeg',
+                    'm4a': 'audio/mp4',
+                    'wav': 'audio/wav',
+                    'ogg': 'audio/ogg',
+                    'aac': 'audio/aac'
+                };
+                const mimeType = mimeTypes[ext] || 'audio/mpeg';
+                embedHtml = `<audio controls preload="metadata"><source src="${directUrl}" type="${mimeType}">Your browser does not support audio.</audio>`;
                 break;
 
             case 'audio':
