@@ -92,6 +92,10 @@
                     <span id="last-weight" class="stat-value">-- lbs</span>
                 </div>
                 <div class="stat-item">
+                    <span class="stat-label">Today's Visits</span>
+                    <span id="today-visits" class="stat-value">--</span>
+                </div>
+                <div class="stat-item">
                     <span class="stat-label">Today's Cycles</span>
                     <span id="today-cycles" class="stat-value">--</span>
                 </div>
@@ -105,7 +109,13 @@
             <h2>History</h2>
 
             <div class="chart-container">
-                <h3>Tot's Daily Visits</h3>
+                <h3>Daily Visits</h3>
+                <canvas id="visits-chart"></canvas>
+                <p class="chart-note" id="visits-note">Last 14 days</p>
+            </div>
+
+            <div class="chart-container">
+                <h3>Daily Cycles</h3>
                 <canvas id="cycles-chart"></canvas>
                 <p class="chart-note" id="cycles-note">Last 14 days</p>
             </div>

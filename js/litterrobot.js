@@ -17,6 +17,7 @@
     };
 
     // Chart instances
+    let visitsChart = null;
     let cyclesChart = null;
     let weightChart = null;
 
@@ -145,6 +146,18 @@
         } else {
             lastWeight.textContent = '-- lbs';
         }
+
+        // Today's visits
+        const todayVisits = document.getElementById('today-visits');
+        if (todayVisits) {
+            todayVisits.textContent = data.todayVisits || 0;
+        }
+
+        // Today's cycles
+        const todayCycles = document.getElementById('today-cycles');
+        if (todayCycles) {
+            todayCycles.textContent = data.todayCycles || 0;
+        }
     }
 
     // Get CSS class for status
@@ -175,6 +188,80 @@
         `;
     }
 
+    // Initialize visits chart
+    function initVisitsChart(historyData) {
+        const ctx = document.getElementById('visits-chart');
+        if (!ctx) return;
+
+        // Prepare data - last 14 days
+        const labels = [];
+        const data = [];
+        const today = new Date();
+
+        for (let i = 13; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            const dateKey = date.toISOString().split('T')[0];
+
+            labels.push(formatDate(dateKey));
+            // Use visits if available, fall back to cycles for backwards compatibility
+            data.push(historyData[dateKey]?.visits || historyData[dateKey]?.cycles || 0);
+        }
+
+        if (visitsChart) {
+            visitsChart.data.labels = labels;
+            visitsChart.data.datasets[0].data = data;
+            visitsChart.update();
+            return;
+        }
+
+        visitsChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Visits',
+                    data: data,
+                    backgroundColor: chartColors.primaryLight,
+                    borderColor: chartColors.primary,
+                    borderWidth: 2,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1,
+                            color: chartColors.gray
+                        },
+                        grid: {
+                            color: chartColors.gridColor
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: chartColors.gray,
+                            maxRotation: 45,
+                            minRotation: 45
+                        },
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    }
+
     // Initialize cycles chart
     function initCyclesChart(historyData) {
         const ctx = document.getElementById('cycles-chart');
@@ -194,11 +281,6 @@
             data.push(historyData[dateKey]?.cycles || 0);
         }
 
-        // Update today's cycles stat
-        const todayKey = today.toISOString().split('T')[0];
-        const todayCycles = document.getElementById('today-cycles');
-        todayCycles.textContent = historyData[todayKey]?.cycles || 0;
-
         if (cyclesChart) {
             cyclesChart.data.labels = labels;
             cyclesChart.data.datasets[0].data = data;
@@ -213,8 +295,8 @@
                 datasets: [{
                     label: 'Cycles',
                     data: data,
-                    backgroundColor: chartColors.primaryLight,
-                    borderColor: chartColors.primary,
+                    backgroundColor: chartColors.secondaryLight,
+                    borderColor: chartColors.secondary,
                     borderWidth: 2,
                     borderRadius: 4
                 }]
@@ -320,7 +402,7 @@
                     y: {
                         ticks: {
                             color: chartColors.gray,
-                            callback: (value) => value + ' lbs'
+                            callback: (value) => value.toFixed(1) + ' lbs'
                         },
                         grid: {
                             color: chartColors.gridColor
@@ -334,6 +416,13 @@
                         },
                         grid: {
                             display: false
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => context.parsed.y.toFixed(1) + ' lbs'
                         }
                     }
                 }
@@ -357,6 +446,7 @@
         // Fetch history
         db.ref('litterrobot/history').once('value').then((snapshot) => {
             const history = snapshot.val() || {};
+            initVisitsChart(history);
             initCyclesChart(history);
             initWeightChart(history);
         }).catch(err => {
@@ -386,6 +476,7 @@
             const db = initFirebase();
             db.ref('litterrobot/history').once('value').then((snapshot) => {
                 const history = snapshot.val() || {};
+                initVisitsChart(history);
                 initCyclesChart(history);
                 initWeightChart(history);
             });
