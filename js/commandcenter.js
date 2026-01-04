@@ -538,39 +538,44 @@
      * Also triggers device state refresh when new actions are logged
      */
     function listenForActivityLog() {
-        db.ref('commandcenter/log')
-            .orderByChild('timestamp')
-            .limitToLast(10)
-            .on('value', (snapshot) => {
-                const logs = snapshot.val();
-                renderActivityLog(logs);
+        const logRef = db.ref('commandcenter/log').orderByChild('timestamp').limitToLast(10);
 
-                // Find the latest timestamp in the logs
-                let latestTimestamp = 0;
-                if (logs) {
-                    Object.values(logs).forEach(log => {
-                        if (log.timestamp > latestTimestamp) {
-                            latestTimestamp = log.timestamp;
-                        }
-                    });
-                }
+        // Listen for value changes to render the log
+        logRef.on('value', (snapshot) => {
+            const logs = snapshot.val();
+            renderActivityLog(logs);
 
-                // If a newer action appeared, refresh device states
-                // Skip on initial load and skip if WE just made an action (to prevent flicker)
-                const timeSinceLocalAction = Date.now() - lastLocalActionTime;
-                const isOurOwnAction = timeSinceLocalAction < LOCAL_ACTION_COOLDOWN;
+            // Track the latest timestamp for initial load
+            if (logs) {
+                Object.values(logs).forEach(log => {
+                    if (log.timestamp > lastLogTimestamp) {
+                        lastLogTimestamp = log.timestamp;
+                    }
+                });
+            }
+            isInitialLoad = false;
+        });
 
-                if (!isInitialLoad && latestTimestamp > lastLogTimestamp && !isOurOwnAction) {
-                    // Debounce to prevent rapid refreshes
-                    clearTimeout(refreshDebounceTimer);
-                    refreshDebounceTimer = setTimeout(() => {
-                        fetchDevices();
-                    }, 500);
-                }
+        // Listen specifically for new entries (more reliable than value for detecting additions)
+        logRef.on('child_added', (snapshot) => {
+            const log = snapshot.val();
+            if (!log || !log.timestamp) return;
 
-                lastLogTimestamp = latestTimestamp;
-                isInitialLoad = false;
-            });
+            // Skip if this is from initial load (timestamp not newer than what we've seen)
+            if (log.timestamp <= lastLogTimestamp) return;
+
+            // Skip if WE just made an action
+            const timeSinceLocalAction = Date.now() - lastLocalActionTime;
+            if (timeSinceLocalAction < LOCAL_ACTION_COOLDOWN) return;
+
+            // New action from another user - refresh device states
+            clearTimeout(refreshDebounceTimer);
+            refreshDebounceTimer = setTimeout(() => {
+                fetchDevices();
+            }, 300);
+
+            lastLogTimestamp = log.timestamp;
+        });
     }
 
     /**
