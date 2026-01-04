@@ -1033,10 +1033,11 @@ You can use HTML tags like:
                     <div class="inline-fields">
                         <input type="text" placeholder="Display Name" value="${esc(d.name || '')}"
                                onchange="ccDevices[${i}].name = this.value">
-                        <select onchange="ccDevices[${i}].type = this.value" style="max-width: 120px;">
+                        <select onchange="ccDevices[${i}].type = this.value" style="max-width: 140px;">
                             <option value="light" ${d.type === 'light' ? 'selected' : ''}>Light</option>
                             <option value="switch" ${d.type === 'switch' ? 'selected' : ''}>Switch</option>
                             <option value="fan" ${d.type === 'fan' ? 'selected' : ''}>Fan</option>
+                            <option value="media_player" ${d.type === 'media_player' ? 'selected' : ''}>Media Player</option>
                         </select>
                     </div>
                 </div>
@@ -1131,6 +1132,12 @@ You can use HTML tags like:
                     } else {
                         actionLabel = 'SPEED';
                     }
+                } else if (action === 'played') {
+                    actionColor = '#2d5a3d';
+                    actionLabel = 'PLAY';
+                } else if (action === 'paused') {
+                    actionColor = '#c45d3a';
+                    actionLabel = 'PAUSE';
                 }
 
                 return `

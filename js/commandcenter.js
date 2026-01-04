@@ -33,9 +33,6 @@
     const devicesGrid = document.getElementById('devices-grid');
     const activityLog = document.getElementById('activity-log');
     const disabledBanner = document.getElementById('disabled-banner');
-    const adminSection = document.getElementById('admin-section');
-    const toggleEnabledBtn = document.getElementById('toggle-enabled-btn');
-    const toggleBtnText = document.getElementById('toggle-btn-text');
 
     /**
      * Initialize Firebase
@@ -48,54 +45,15 @@
     }
 
     /**
-     * Check if user is admin (logged into admin panel)
-     */
-    function checkAdminAuth() {
-        return localStorage.getItem('admin_auth') === 'true';
-    }
-
-    /**
-     * Setup admin controls if authenticated
-     */
-    function setupAdminControls() {
-        if (checkAdminAuth()) {
-            adminSection.style.display = 'block';
-            toggleEnabledBtn.addEventListener('click', toggleEnabled);
-        }
-    }
-
-    /**
-     * Toggle command center enabled state (admin only)
-     */
-    async function toggleEnabled() {
-        const newState = !isEnabled;
-        toggleEnabledBtn.disabled = true;
-
-        try {
-            await db.ref('commandcenter/enabled').set(newState);
-            // State will update via real-time listener
-        } catch (error) {
-            console.error('Failed to toggle enabled state:', error);
-            alert('Failed to update. Please try again.');
-        }
-
-        toggleEnabledBtn.disabled = false;
-    }
-
-    /**
      * Update UI based on enabled state
      */
     function updateEnabledUI() {
         if (isEnabled) {
             disabledBanner.style.display = 'none';
             devicesGrid.classList.remove('disabled');
-            toggleBtnText.textContent = 'Disable Controls';
-            toggleEnabledBtn.classList.remove('enable');
         } else {
             disabledBanner.style.display = 'flex';
             devicesGrid.classList.add('disabled');
-            toggleBtnText.textContent = 'Enable Controls';
-            toggleEnabledBtn.classList.add('enable');
         }
 
         // Update all device cards
@@ -156,7 +114,13 @@
             const disabledClass = isEnabled ? '' : 'disabled';
             const isLight = entityId.startsWith('light.');
             const isFan = entityId.startsWith('fan.');
+            const isMediaPlayer = entityId.startsWith('media_player.');
             const supportsColor = device.supports_color;
+
+            // Media player gets a completely different card
+            if (isMediaPlayer) {
+                return renderMediaPlayerCard(entityId, device, disabledClass);
+            }
 
             // Build extra controls HTML
             let extraControls = '';
@@ -283,6 +247,11 @@
         devicesGrid.querySelectorAll('.fan-btn').forEach(btn => {
             btn.addEventListener('click', handleFanSpeed);
         });
+
+        // Add media player button handlers
+        devicesGrid.querySelectorAll('.media-btn').forEach(btn => {
+            btn.addEventListener('click', handleMediaControl);
+        });
     }
 
     /**
@@ -305,6 +274,80 @@
             parseInt(result[2], 16),
             parseInt(result[3], 16)
         ] : [255, 255, 255];
+    }
+
+    /**
+     * Render media player card (Apple TV, etc.)
+     */
+    function renderMediaPlayerCard(entityId, device, disabledClass) {
+        const state = device.state || 'off';
+        const isPlaying = state === 'playing';
+        const isPaused = state === 'paused';
+        const isOn = state !== 'off' && state !== 'unavailable';
+        const isActive = isPlaying || isPaused;
+
+        // Determine status badge
+        let stateLabel = state.charAt(0).toUpperCase() + state.slice(1);
+        if (state === 'standby') stateLabel = 'Standby';
+        if (state === 'idle') stateLabel = 'Idle';
+        if (state === 'off') stateLabel = 'Off';
+        if (state === 'unavailable') stateLabel = 'Unavailable';
+
+        // Media info
+        const mediaTitle = device.media_title || '';
+        const appName = device.app_name || '';
+        const mediaArtist = device.media_artist || '';
+
+        // Build media info display
+        let mediaInfo = '';
+        if (isActive && (mediaTitle || appName)) {
+            mediaInfo = `
+                <div class="media-info">
+                    ${mediaTitle ? `<div class="media-title">${mediaTitle}</div>` : ''}
+                    ${mediaArtist ? `<div class="media-artist">${mediaArtist}</div>` : ''}
+                    ${appName ? `<div class="media-app">${appName}</div>` : ''}
+                </div>
+            `;
+        } else if (isOn && !isActive) {
+            mediaInfo = `
+                <div class="media-info empty">
+                    <div class="media-title">Nothing playing</div>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="device-card media-player-card ${disabledClass}" data-entity-id="${entityId}">
+                <div class="device-header">
+                    <span class="device-emoji">${device.emoji || '📺'}</span>
+                    <span class="device-name">${device.name}</span>
+                </div>
+                <div class="media-state">
+                    <span class="media-state-badge ${state}">${stateLabel}</span>
+                </div>
+                ${mediaInfo}
+                <div class="media-buttons">
+                    <button
+                        class="media-btn play ${isPlaying ? 'active' : ''}"
+                        data-entity-id="${entityId}"
+                        data-action="media_play"
+                        ${!isEnabled || !isActive ? 'disabled' : ''}
+                    >▶ Play</button>
+                    <button
+                        class="media-btn pause ${isPaused ? 'active' : ''}"
+                        data-entity-id="${entityId}"
+                        data-action="media_pause"
+                        ${!isEnabled || !isActive ? 'disabled' : ''}
+                    >⏸ Pause</button>
+                </div>
+                <button
+                    class="device-btn media-power-btn ${isOn ? 'turn-off' : 'turn-on'}"
+                    data-entity-id="${entityId}"
+                    data-action="${isOn ? 'turn_off' : 'turn_on'}"
+                    ${!isEnabled ? 'disabled' : ''}
+                >${isOn ? 'Turn Off' : 'Turn On'}</button>
+            </div>
+        `;
     }
 
     /**
@@ -332,8 +375,14 @@
         lastLocalActionTime = Date.now();
 
         // Optimistic UI update - instantly toggle the state
-        const newState = action === 'turn_on' ? 'on' : 'off';
-        updateDeviceUI(entityId, newState);
+        const isMediaPlayer = entityId.startsWith('media_player.');
+        if (isMediaPlayer) {
+            // Media players go to 'idle' when turned on, 'off' when turned off
+            updateMediaPlayerUI(entityId, action === 'turn_on' ? 'idle' : 'off');
+        } else {
+            const newState = action === 'turn_on' ? 'on' : 'off';
+            updateDeviceUI(entityId, newState);
+        }
 
         try {
             const response = await fetch(`${WORKER_URL}/api/control`, {
@@ -396,6 +445,65 @@
         fanButtons.forEach(b => {
             b.disabled = !isOn || !isEnabled;
         });
+    }
+
+    /**
+     * Update media player UI optimistically without full re-render
+     */
+    function updateMediaPlayerUI(entityId, newState) {
+        const card = document.querySelector(`.media-player-card[data-entity-id="${entityId}"]`);
+        if (!card) return;
+
+        const isPlaying = newState === 'playing';
+        const isPaused = newState === 'paused';
+        const isOn = newState !== 'off' && newState !== 'unavailable';
+        const isActive = isPlaying || isPaused;
+
+        // Update state badge
+        const badge = card.querySelector('.media-state-badge');
+        if (badge) {
+            badge.className = `media-state-badge ${newState}`;
+            let label = newState.charAt(0).toUpperCase() + newState.slice(1);
+            if (newState === 'standby') label = 'Standby';
+            badge.textContent = label;
+        }
+
+        // Update play/pause button states
+        const playBtn = card.querySelector('.media-btn.play');
+        const pauseBtn = card.querySelector('.media-btn.pause');
+
+        if (playBtn) {
+            playBtn.classList.toggle('active', isPlaying);
+            playBtn.disabled = !isEnabled || !isActive;
+        }
+        if (pauseBtn) {
+            pauseBtn.classList.toggle('active', isPaused);
+            pauseBtn.disabled = !isEnabled || !isActive;
+        }
+
+        // Update power button
+        const powerBtn = card.querySelector('.media-power-btn');
+        if (powerBtn) {
+            powerBtn.className = `device-btn media-power-btn ${isOn ? 'turn-off' : 'turn-on'}`;
+            powerBtn.dataset.action = isOn ? 'turn_off' : 'turn_on';
+            powerBtn.textContent = isOn ? 'Turn Off' : 'Turn On';
+        }
+
+        // Update media info section
+        const mediaInfo = card.querySelector('.media-info');
+        if (mediaInfo) {
+            if (!isOn) {
+                mediaInfo.remove();
+            } else if (!isActive && !mediaInfo.classList.contains('empty')) {
+                mediaInfo.className = 'media-info empty';
+                mediaInfo.innerHTML = '<div class="media-title">Nothing playing</div>';
+            }
+        }
+
+        // Update local state
+        if (devices[entityId]) {
+            devices[entityId].state = newState;
+        }
     }
 
     /**
@@ -534,6 +642,55 @@
     }
 
     /**
+     * Handle media player control button click (play/pause)
+     */
+    async function handleMediaControl(event) {
+        const btn = event.currentTarget;
+        const entityId = btn.dataset.entityId;
+        const action = btn.dataset.action;
+
+        if (!isEnabled) return;
+
+        lastLocalActionTime = Date.now();
+
+        // Optimistic UI update
+        const newState = action === 'media_play' ? 'playing' : 'paused';
+        updateMediaPlayerUI(entityId, newState);
+
+        // Disable all media buttons for this device
+        const mediaButtons = document.querySelectorAll(`.media-btn[data-entity-id="${entityId}"]`);
+        mediaButtons.forEach(b => b.disabled = true);
+        btn.classList.add('loading');
+
+        try {
+            const response = await fetch(`${WORKER_URL}/api/control`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    entity_id: entityId,
+                    action: action
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to control media player');
+            }
+
+            // Don't fetch immediately - HA state lags behind
+            // The optimistic update already shows correct state
+            // Firebase listener will trigger eventual refresh
+        } catch (error) {
+            console.error('Failed to control media player:', error);
+            alert(error.message || 'Failed to control media player. Please try again.');
+        }
+
+        btn.classList.remove('loading');
+        mediaButtons.forEach(b => b.disabled = false);
+    }
+
+    /**
      * Listen for activity log updates from Firebase
      * Also triggers device state refresh when new actions are logged
      */
@@ -573,9 +730,19 @@
             // Immediately update UI based on the log action (don't wait for HA)
             if (log.entity_id && log.action) {
                 const action = log.action.split(' ')[0]; // Handle "turn_on (color)" etc.
+                const isMediaPlayer = log.entity_id.startsWith('media_player.');
+
                 if (action === 'turn_on' || action === 'turn_off') {
                     const newState = action === 'turn_on' ? 'on' : 'off';
-                    updateDeviceUI(log.entity_id, newState);
+                    if (isMediaPlayer) {
+                        // Media players go to 'idle' when turned on, 'off' when turned off
+                        updateMediaPlayerUI(log.entity_id, action === 'turn_on' ? 'idle' : 'off');
+                    } else {
+                        updateDeviceUI(log.entity_id, newState);
+                    }
+                } else if (action === 'played' || action === 'paused') {
+                    // Update media player state
+                    updateMediaPlayerUI(log.entity_id, action === 'played' ? 'playing' : 'paused');
                 }
             }
 
@@ -628,6 +795,12 @@
                 } else {
                     actionText = 'changed speed on';
                 }
+            } else if (action === 'played') {
+                actionClass = 'action-on';
+                actionText = 'played';
+            } else if (action === 'paused') {
+                actionClass = 'action-off';
+                actionText = 'paused';
             }
 
             return `
@@ -671,7 +844,6 @@
      */
     function init() {
         initFirebase();
-        setupAdminControls();
         listenForEnabledState();
         listenForActivityLog();
         fetchDevices();

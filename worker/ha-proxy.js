@@ -32,7 +32,7 @@ function getCorsHeaders(request) {
 }
 
 // Allowed actions (whitelist)
-const ALLOWED_ACTIONS = ['turn_on', 'turn_off', 'set_percentage'];
+const ALLOWED_ACTIONS = ['turn_on', 'turn_off', 'set_percentage', 'media_play', 'media_pause'];
 
 export default {
     async fetch(request, env, ctx) {
@@ -232,6 +232,22 @@ async function handleGetState(env, corsHeaders) {
                     }
                 }
 
+                // Add media_player-specific attributes
+                if (state.entity_id.startsWith('media_player.')) {
+                    if (state.attributes?.media_title) {
+                        deviceInfo.media_title = state.attributes.media_title;
+                    }
+                    if (state.attributes?.app_name) {
+                        deviceInfo.app_name = state.attributes.app_name;
+                    }
+                    if (state.attributes?.media_artist) {
+                        deviceInfo.media_artist = state.attributes.media_artist;
+                    }
+                    if (state.attributes?.media_content_type) {
+                        deviceInfo.media_content_type = state.attributes.media_content_type;
+                    }
+                }
+
                 states[state.entity_id] = deviceInfo;
             }
         }
@@ -325,6 +341,9 @@ async function handleControl(request, env, corsHeaders) {
         let logMessage = action;
         if (rgb_color) logMessage += ` (color)`;
         if (percentage !== undefined) logMessage += ` (${percentage}%)`;
+        // Friendly names for media actions
+        if (action === 'media_play') logMessage = 'played';
+        if (action === 'media_pause') logMessage = 'paused';
 
         // Log the action
         await logAction(env, entity_id, logMessage, devices[entity_id]?.name);

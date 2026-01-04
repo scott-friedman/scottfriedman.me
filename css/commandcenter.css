@@ -363,6 +363,155 @@
     border-top-color: white;
 }
 
+/* Media Player Control */
+.media-player-card .device-status {
+    display: none;
+}
+
+.media-state {
+    margin-bottom: 0.5rem;
+}
+
+.media-state-badge {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.media-state-badge.playing {
+    background: var(--accent);
+    color: white;
+}
+
+.media-state-badge.paused {
+    background: #ffd580;
+    color: #664d00;
+}
+
+.media-state-badge.idle,
+.media-state-badge.standby,
+.media-state-badge.off,
+.media-state-badge.unavailable {
+    background: var(--gray-light);
+    color: var(--gray);
+}
+
+.media-info {
+    background: rgba(0, 0, 0, 0.03);
+    border-radius: 6px;
+    padding: 0.6rem;
+    margin-bottom: 0.75rem;
+}
+
+.media-info.empty {
+    background: transparent;
+    padding: 0.4rem 0;
+}
+
+.media-info.empty .media-title {
+    color: var(--gray-light);
+    font-style: italic;
+    font-weight: normal;
+}
+
+.media-title {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--black);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.media-artist {
+    font-size: 0.75rem;
+    color: var(--gray);
+    margin-top: 0.15rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.media-app {
+    font-size: 0.7rem;
+    color: var(--gray-light);
+    margin-top: 0.25rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.media-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.media-btn {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--gray-light);
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    background: white;
+    color: var(--gray);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.media-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.media-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+.media-btn.pause.active {
+    background: #ffd580;
+    border-color: #ffd580;
+    color: #664d00;
+}
+
+.media-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.media-btn.loading {
+    position: relative;
+    color: transparent;
+}
+
+.media-btn.loading::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 14px;
+    height: 14px;
+    border: 2px solid transparent;
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.media-btn.active.loading::after {
+    border-top-color: white;
+}
+
+/* Media Player Power Button */
+.media-player-card .media-power-btn {
+    margin-top: 0.5rem;
+}
+
 /* Activity Section */
 .activity-section {
     margin-bottom: 2rem;
