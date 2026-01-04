@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tot's Litter Box - Scott Friedman</title>
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/litterrobot.css">
+    <link rel="stylesheet" href="css/litterrobot.css?v=2">
 </head>
 <body class="dashboard-page">
     <main class="dashboard-fullwidth">
@@ -20,11 +20,8 @@
             <div class="top-row">
                 <!-- Status Card -->
                 <div class="status-card">
-                    <div class="status-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="10"/>
-                            <path d="M12 6v6l4 2"/>
-                        </svg>
+                    <div class="status-icon emoji-icon">
+                        <span>🚽</span>
                     </div>
                     <div class="status-info">
                         <span id="status-badge" class="status-badge loading">Loading...</span>
@@ -34,10 +31,8 @@
 
                 <!-- Waste Level -->
                 <div class="stat-card waste-card">
-                    <div class="stat-icon waste-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/>
-                        </svg>
+                    <div class="stat-icon emoji-icon">
+                        <span>💩</span>
                     </div>
                     <div class="stat-content">
                         <span class="stat-label">Waste Drawer</span>
@@ -52,11 +47,8 @@
 
                 <!-- Today's Visits -->
                 <div class="stat-card">
-                    <div class="stat-icon visits-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 22c1-3 6-6 6-10a6 6 0 10-12 0c0 4 5 7 6 10z"/>
-                            <circle cx="12" cy="12" r="2"/>
-                        </svg>
+                    <div class="stat-icon emoji-icon">
+                        <span>🐱</span>
                     </div>
                     <div class="stat-content">
                         <span class="stat-label">Today's Visits</span>
@@ -66,11 +58,8 @@
 
                 <!-- Today's Cycles -->
                 <div class="stat-card">
-                    <div class="stat-icon cycles-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 12a9 9 0 11-9-9"/>
-                            <polyline points="21 3 21 9 15 9"/>
-                        </svg>
+                    <div class="stat-icon emoji-icon">
+                        <span>🔄</span>
                     </div>
                     <div class="stat-content">
                         <span class="stat-label">Today's Cycles</span>
@@ -80,11 +69,8 @@
 
                 <!-- Weight -->
                 <div class="stat-card">
-                    <div class="stat-icon weight-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M6 18L18 6M6 6l12 12"/>
-                            <circle cx="12" cy="12" r="9"/>
-                        </svg>
+                    <div class="stat-icon emoji-icon">
+                        <span>⚖️</span>
                     </div>
                     <div class="stat-content">
                         <span class="stat-label">Tot's Weight</span>
@@ -94,11 +80,8 @@
 
                 <!-- Last Cycle -->
                 <div class="stat-card">
-                    <div class="stat-icon cycle-time-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="10"/>
-                            <polyline points="12 6 12 12 16 14"/>
-                        </svg>
+                    <div class="stat-icon emoji-icon">
+                        <span>🕐</span>
                     </div>
                     <div class="stat-content">
                         <span class="stat-label">Last Cycle</span>
@@ -111,9 +94,7 @@
             <div class="charts-row">
                 <div class="chart-card">
                     <div class="chart-header">
-                        <svg class="chart-icon visits-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 22c1-3 6-6 6-10a6 6 0 10-12 0c0 4 5 7 6 10z"/>
-                        </svg>
+                        <span class="chart-emoji">🐱</span>
                         <h3>Daily Visits</h3>
                         <div class="chart-toggles" data-chart="visits">
                             <button class="toggle-btn" data-days="7">7d</button>
@@ -128,9 +109,7 @@
 
                 <div class="chart-card">
                     <div class="chart-header">
-                        <svg class="chart-icon cycles-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 12a9 9 0 11-9-9"/><polyline points="21 3 21 9 15 9"/>
-                        </svg>
+                        <span class="chart-emoji">🔄</span>
                         <h3>Daily Cycles</h3>
                         <div class="chart-toggles" data-chart="cycles">
                             <button class="toggle-btn" data-days="7">7d</button>
@@ -145,9 +124,7 @@
 
                 <div class="chart-card">
                     <div class="chart-header">
-                        <svg class="chart-icon weight-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="9"/><path d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
+                        <span class="chart-emoji">⚖️</span>
                         <h3>Weight Trend</h3>
                         <div class="chart-toggles" data-chart="weight">
                             <button class="toggle-btn" data-days="7">7d</button>

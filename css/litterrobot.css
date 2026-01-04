@@ -72,16 +72,20 @@ body.dashboard-page main.dashboard-fullwidth * {
 .status-icon {
     width: 40px;
     height: 40px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #2d5a3d 0%, #4a8c5f 100%);
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
 }
 
-.status-icon svg {
-    stroke: white;
+.status-icon.emoji-icon {
+    background: rgba(0, 0, 0, 0.04);
+}
+
+.status-icon.emoji-icon span {
+    font-size: 1.75rem;
+    line-height: 1;
 }
 
 .status-info {
@@ -161,29 +165,15 @@ body.dashboard-page main.dashboard-fullwidth * {
     flex-shrink: 0;
 }
 
-/* Colored Icons */
-.stat-icon.visits-icon {
-    background: linear-gradient(135deg, #2d5a3d 0%, #4a8c5f 100%);
+/* Emoji Icons - subtle background */
+.stat-icon.emoji-icon {
+    background: rgba(0, 0, 0, 0.04);
+    border-radius: 10px;
 }
 
-.stat-icon.cycles-icon {
-    background: linear-gradient(135deg, #c45d3a 0%, #e88a60 100%);
-}
-
-.stat-icon.weight-icon {
-    background: linear-gradient(135deg, #6b4423 0%, #8b6243 100%);
-}
-
-.stat-icon.waste-icon {
-    background: linear-gradient(135deg, #5c5347 0%, #7a7168 100%);
-}
-
-.stat-icon.cycle-time-icon {
-    background: linear-gradient(135deg, #4a6fa5 0%, #6b8fc5 100%);
-}
-
-.stat-icon svg {
-    stroke: white;
+.stat-icon.emoji-icon span {
+    font-size: 1.5rem;
+    line-height: 1;
 }
 
 .stat-content {
@@ -314,20 +304,9 @@ body.dashboard-page main.dashboard-fullwidth * {
     color: white;
 }
 
-.chart-icon {
+.chart-emoji {
+    font-size: 1rem;
     flex-shrink: 0;
-}
-
-.chart-icon.visits-icon {
-    stroke: #2d5a3d;
-}
-
-.chart-icon.cycles-icon {
-    stroke: #c45d3a;
-}
-
-.chart-icon.weight-icon {
-    stroke: #6b4423;
 }
 
 .chart-wrapper {
