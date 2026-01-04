@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Command Center - Scott Friedman</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/commandcenter.css">
+</head>
+<body class="dashboard-page">
+    <main class="dashboard-fullwidth command-center-main">
+        <header class="dashboard-header">
+            <a href="index.html" class="back-link">back to home</a>
+            <h1>Command Center</h1>
+            <p class="tagline">control scott's smart home</p>
+        </header>
+
+        <!-- Status Banner (shown when disabled) -->
+        <div id="disabled-banner" class="disabled-banner" style="display: none;">
+            <span class="banner-icon">🔒</span>
+            <span class="banner-text">Command center is currently offline</span>
+        </div>
+
+        <!-- Device Controls Grid -->
+        <section id="devices-section" class="devices-section">
+            <div id="devices-grid" class="devices-grid">
+                <!-- Devices will be populated by JavaScript -->
+                <div class="loading-placeholder">
+                    <span class="loading-spinner"></span>
+                    <span>Loading devices...</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Activity Log -->
+        <section class="activity-section">
+            <h2>Recent Activity</h2>
+            <ul id="activity-log" class="activity-log">
+                <li class="activity-placeholder">No recent activity</li>
+            </ul>
+        </section>
+
+        <!-- Admin Controls (hidden unless logged in) -->
+        <section id="admin-section" class="admin-section" style="display: none;">
+            <hr>
+            <div class="admin-controls">
+                <span class="admin-label">Admin Controls</span>
+                <button id="toggle-enabled-btn" class="admin-btn">
+                    <span id="toggle-btn-text">Disable Controls</span>
+                </button>
+            </div>
+        </section>
+
+        <footer class="dashboard-footer">
+            <p class="small">be nice to Tot</p>
+        </footer>
+    </main>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="js/commandcenter.js"></script>
+</body>
+</html>

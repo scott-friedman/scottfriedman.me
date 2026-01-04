@@ -324,6 +324,7 @@
         <div class="tabs">
             <button class="tab active" onclick="showTab('home')">Home Page</button>
             <button class="tab" onclick="showTab('pages')">Pages</button>
+            <button class="tab" onclick="showTab('commandcenter')">Command Center</button>
         </div>
 
         <!-- Home Page Tab -->
@@ -345,6 +346,45 @@
                 </p>
                 <div id="pages-list"></div>
                 <button class="add-btn" onclick="openPageEditor()">+ Create New Page</button>
+            </div>
+        </div>
+
+        <!-- Command Center Tab -->
+        <div id="tab-commandcenter" class="tab-content">
+            <div class="section">
+                <h2>Command Center Settings</h2>
+                <p style="color: #666; font-size: 0.85rem; margin-bottom: 1rem;">
+                    Control public access to your smart home devices. When enabled, visitors can toggle your devices.
+                </p>
+
+                <!-- Enable/Disable Toggle -->
+                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; padding: 1rem; background: #f9f9f9; border-radius: 8px;">
+                    <span style="font-weight: 500;">Public Controls:</span>
+                    <button id="cc-toggle-btn" class="btn-small" onclick="toggleCommandCenter()" style="padding: 0.5rem 1rem;">
+                        Loading...
+                    </button>
+                    <span id="cc-status" style="color: #666; font-size: 0.85rem;"></span>
+                </div>
+
+                <h3>Devices</h3>
+                <p style="color: #666; font-size: 0.85rem; margin-bottom: 1rem;">
+                    Configure which devices visitors can control. You'll need entity IDs from Home Assistant.
+                </p>
+                <div id="cc-devices-container"></div>
+                <button class="add-btn" onclick="addCCDevice()">+ Add Device</button>
+                <button class="save-btn" onclick="saveCCDevices()" style="margin-top: 1rem; width: 100%;">Save Devices</button>
+                <span id="cc-save-status" class="status" style="display: block; text-align: center; margin-top: 0.5rem;"></span>
+            </div>
+
+            <div class="section">
+                <h2>Activity Log</h2>
+                <p style="color: #666; font-size: 0.85rem; margin-bottom: 1rem;">
+                    Recent actions taken by visitors.
+                </p>
+                <div id="cc-activity-log" style="max-height: 300px; overflow-y: auto;">
+                    <p style="color: #999; text-align: center;">Loading...</p>
+                </div>
+                <button class="btn-small btn-delete" onclick="clearCCLog()" style="margin-top: 1rem;">Clear Log</button>
             </div>
         </div>
     </div>
@@ -908,6 +948,175 @@ You can use HTML tags like:
         }
 
         function esc(str) { return (str || '').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+
+        // ==================== Command Center ====================
+
+        let ccEnabled = false;
+        let ccDevices = [];
+
+        function loadCommandCenter() {
+            // Load enabled state
+            db.ref('commandcenter/enabled').on('value', (snapshot) => {
+                ccEnabled = snapshot.val() === true;
+                updateCCToggleUI();
+            });
+
+            // Load devices
+            db.ref('commandcenter/devices').once('value').then((snapshot) => {
+                const data = snapshot.val() || {};
+                ccDevices = Object.entries(data).map(([key, device]) => ({
+                    entityId: device.entity_id || decodeFirebaseKey(key),
+                    name: device.name,
+                    emoji: device.emoji,
+                    type: device.type
+                }));
+                renderCCDevices();
+            });
+
+            // Load activity log
+            db.ref('commandcenter/log')
+                .orderByChild('timestamp')
+                .limitToLast(20)
+                .on('value', (snapshot) => {
+                    renderCCActivityLog(snapshot.val());
+                });
+        }
+
+        function updateCCToggleUI() {
+            const btn = document.getElementById('cc-toggle-btn');
+            const status = document.getElementById('cc-status');
+            if (ccEnabled) {
+                btn.textContent = 'Disable';
+                btn.style.background = '#c45d3a';
+                btn.style.color = 'white';
+                status.textContent = 'Visitors can control your devices';
+            } else {
+                btn.textContent = 'Enable';
+                btn.style.background = '#2d5a3d';
+                btn.style.color = 'white';
+                status.textContent = 'Controls are hidden from visitors';
+            }
+        }
+
+        function toggleCommandCenter() {
+            db.ref('commandcenter/enabled').set(!ccEnabled);
+        }
+
+        function renderCCDevices() {
+            const container = document.getElementById('cc-devices-container');
+            if (ccDevices.length === 0) {
+                container.innerHTML = '<p style="color: #999; text-align: center; padding: 1rem;">No devices configured. Add one below!</p>';
+                return;
+            }
+            container.innerHTML = ccDevices.map((d, i) => `
+                <div class="item">
+                    <div class="item-header">
+                        <span class="item-title">${d.emoji || '🔌'} ${d.name || 'Device ' + (i+1)}</span>
+                        <button class="remove-btn" onclick="removeCCDevice(${i})">×</button>
+                    </div>
+                    <div class="inline-fields">
+                        <input type="text" placeholder="Entity ID (e.g., light.bedroom)" value="${esc(d.entityId)}"
+                               onchange="ccDevices[${i}].entityId = this.value">
+                        <input type="text" placeholder="Emoji" value="${esc(d.emoji || '')}"
+                               onchange="ccDevices[${i}].emoji = this.value" style="max-width: 60px;">
+                    </div>
+                    <div class="inline-fields">
+                        <input type="text" placeholder="Display Name" value="${esc(d.name || '')}"
+                               onchange="ccDevices[${i}].name = this.value">
+                        <select onchange="ccDevices[${i}].type = this.value" style="max-width: 120px;">
+                            <option value="light" ${d.type === 'light' ? 'selected' : ''}>Light</option>
+                            <option value="switch" ${d.type === 'switch' ? 'selected' : ''}>Switch</option>
+                            <option value="fan" ${d.type === 'fan' ? 'selected' : ''}>Fan</option>
+                        </select>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function addCCDevice() {
+            ccDevices.push({ entityId: '', name: '', emoji: '💡', type: 'light' });
+            renderCCDevices();
+        }
+
+        function removeCCDevice(i) {
+            ccDevices.splice(i, 1);
+            renderCCDevices();
+        }
+
+        // Firebase keys can't contain dots, so we encode entity_ids
+        function encodeFirebaseKey(key) {
+            return key.replace(/\./g, '__');
+        }
+        function decodeFirebaseKey(key) {
+            return key.replace(/__/g, '.');
+        }
+
+        function saveCCDevices() {
+            const status = document.getElementById('cc-save-status');
+            status.textContent = 'Saving...';
+            status.className = 'status';
+
+            // Convert array to object keyed by encoded entityId
+            const devicesObj = {};
+            ccDevices.filter(d => d.entityId.trim()).forEach(d => {
+                const key = encodeFirebaseKey(d.entityId);
+                devicesObj[key] = {
+                    entity_id: d.entityId, // Store actual entity_id as field
+                    name: d.name || d.entityId,
+                    emoji: d.emoji || '🔌',
+                    type: d.type || 'switch'
+                };
+            });
+
+            db.ref('commandcenter/devices').set(devicesObj)
+                .then(() => {
+                    status.textContent = 'Saved!';
+                    status.className = 'status success';
+                    setTimeout(() => { status.textContent = ''; }, 2000);
+                })
+                .catch(err => {
+                    status.textContent = 'Error: ' + err.message;
+                    status.className = 'status error';
+                });
+        }
+
+        function renderCCActivityLog(logs) {
+            const container = document.getElementById('cc-activity-log');
+            if (!logs) {
+                container.innerHTML = '<p style="color: #999; text-align: center;">No activity yet</p>';
+                return;
+            }
+
+            const logArray = Object.entries(logs)
+                .map(([key, val]) => ({ key, ...val }))
+                .sort((a, b) => b.timestamp - a.timestamp);
+
+            container.innerHTML = logArray.map(log => {
+                const time = new Date(log.timestamp).toLocaleString();
+                const actionColor = log.action === 'turn_on' ? '#2d5a3d' : '#c45d3a';
+                return `
+                    <div style="padding: 0.5rem; border-bottom: 1px solid #eee; font-size: 0.85rem;">
+                        <span style="color: ${actionColor}; font-weight: 500;">
+                            ${log.action === 'turn_on' ? 'ON' : 'OFF'}
+                        </span>
+                        <span style="color: #333;">${log.deviceName || log.entity_id}</span>
+                        <span style="color: #999; font-size: 0.75rem; float: right;">${time}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function clearCCLog() {
+            if (!confirm('Clear all activity logs?')) return;
+            db.ref('commandcenter/log').remove();
+        }
+
+        // Load command center when showing admin
+        const originalShowAdmin = showAdmin;
+        showAdmin = function() {
+            originalShowAdmin();
+            loadCommandCenter();
+        };
     </script>
 </body>
 </html>
