@@ -26,6 +26,8 @@
     let lastLogTimestamp = 0;
     let refreshDebounceTimer = null;
     let isInitialLoad = true;
+    let lastLocalActionTime = 0; // Track when WE made an action
+    const LOCAL_ACTION_COOLDOWN = 3000; // Ignore Firebase refreshes for 3s after our own action
 
     // DOM Elements
     const devicesGrid = document.getElementById('devices-grid');
@@ -326,6 +328,9 @@
 
         if (!isEnabled) return;
 
+        // Mark that WE are making an action (prevents Firebase refresh flicker)
+        lastLocalActionTime = Date.now();
+
         // Optimistic UI update - instantly toggle the state
         const newState = action === 'turn_on' ? 'on' : 'off';
         updateDeviceUI(entityId, newState);
@@ -404,6 +409,7 @@
 
         if (!isEnabled) return;
 
+        lastLocalActionTime = Date.now();
         picker.disabled = true;
 
         try {
@@ -442,6 +448,8 @@
         const rgbColor = btn.dataset.rgb.split(',').map(Number);
 
         if (!isEnabled) return;
+
+        lastLocalActionTime = Date.now();
 
         // Disable all color presets for this device
         const presets = document.querySelectorAll(`.color-preset[data-entity-id="${entityId}"]`);
@@ -489,6 +497,8 @@
         const speed = parseInt(btn.dataset.speed, 10);
 
         if (!isEnabled) return;
+
+        lastLocalActionTime = Date.now();
 
         // Disable all fan buttons for this device
         const fanButtons = document.querySelectorAll(`.fan-btn[data-entity-id="${entityId}"]`);
@@ -546,8 +556,11 @@
                 }
 
                 // If a newer action appeared, refresh device states
-                // Skip on initial load
-                if (!isInitialLoad && latestTimestamp > lastLogTimestamp) {
+                // Skip on initial load and skip if WE just made an action (to prevent flicker)
+                const timeSinceLocalAction = Date.now() - lastLocalActionTime;
+                const isOurOwnAction = timeSinceLocalAction < LOCAL_ACTION_COOLDOWN;
+
+                if (!isInitialLoad && latestTimestamp > lastLogTimestamp && !isOurOwnAction) {
                     // Debounce to prevent rapid refreshes
                     clearTimeout(refreshDebounceTimer);
                     refreshDebounceTimer = setTimeout(() => {
