@@ -25,6 +25,18 @@ html {
     scroll-behavior: smooth;
 }
 
+/* Content loading state - prevents flash of default content */
+body.content-loading main section,
+body.content-loading main #intro-content {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+body.content-loaded main section,
+body.content-loaded main #intro-content {
+    opacity: 1;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
     font-size: 16px;

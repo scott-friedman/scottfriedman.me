@@ -664,8 +664,15 @@
                         .join('');
                 }
             }
+
+            // Content loaded - reveal sections
+            document.body.classList.remove('content-loading');
+            document.body.classList.add('content-loaded');
         }).catch(err => {
             console.log('Content load failed, using defaults:', err);
+            // Still reveal sections even on error
+            document.body.classList.remove('content-loading');
+            document.body.classList.add('content-loaded');
         });
     }
 
