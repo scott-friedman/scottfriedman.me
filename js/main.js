@@ -31,33 +31,57 @@
     // ==========================================================================
     const COLOR_PALETTES = {
         forest: [
-            { r: 45, g: 90, b: 61 },    // deep forest
-            { r: 74, g: 140, b: 95 },   // forest
-            { r: 127, g: 176, b: 105 }, // light green
+            { r: 29, g: 71, b: 51 },    // deep forest
+            { r: 46, g: 125, b: 84 },   // emerald
+            { r: 98, g: 166, b: 117 },  // sage
         ],
-        terracotta: [
-            { r: 196, g: 93, b: 58 },   // terracotta
-            { r: 212, g: 117, b: 106 }, // salmon
-            { r: 232, g: 160, b: 144 }, // peach
+        ocean: [
+            { r: 35, g: 87, b: 102 },   // deep teal
+            { r: 66, g: 133, b: 150 },  // ocean
+            { r: 107, g: 168, b: 179 }, // seafoam
+        ],
+        sunset: [
+            { r: 204, g: 102, b: 68 },  // burnt orange
+            { r: 227, g: 139, b: 94 },  // apricot
+            { r: 244, g: 187, b: 135 }, // peach
+        ],
+        berry: [
+            { r: 143, g: 63, b: 89 },   // burgundy
+            { r: 181, g: 93, b: 119 },  // dusty rose
+            { r: 212, g: 145, b: 158 }, // blush
+        ],
+        plum: [
+            { r: 88, g: 61, b: 100 },   // deep plum
+            { r: 128, g: 95, b: 138 },  // mauve
+            { r: 167, g: 137, b: 172 }, // lavender
+        ],
+        gold: [
+            { r: 166, g: 124, b: 54 },  // antique gold
+            { r: 199, g: 163, b: 86 },  // golden
+            { r: 224, g: 196, b: 132 }, // champagne
         ],
         earth: [
-            { r: 107, g: 68, b: 35 },   // brown
-            { r: 139, g: 111, b: 71 },  // tan
-            { r: 160, g: 128, b: 96 },  // light brown
+            { r: 107, g: 68, b: 35 },   // chocolate
+            { r: 148, g: 103, b: 61 },  // caramel
+            { r: 180, g: 144, b: 103 }, // sand
         ],
-        warm: [
-            { r: 92, g: 83, b: 71 },    // warm gray
-            { r: 138, g: 127, b: 114 }, // taupe
-            { r: 181, g: 170, b: 156 }, // light taupe
+        slate: [
+            { r: 66, g: 72, b: 82 },    // charcoal
+            { r: 105, g: 112, b: 122 }, // slate
+            { r: 148, g: 154, b: 162 }, // silver
         ]
     };
 
-    // Flatten all colors into one continuous rainbow
+    // Flow through colors in a pleasing order
     const ALL_COLORS = [
         ...COLOR_PALETTES.forest,
-        ...COLOR_PALETTES.terracotta,
+        ...COLOR_PALETTES.ocean,
+        ...COLOR_PALETTES.plum,
+        ...COLOR_PALETTES.berry,
+        ...COLOR_PALETTES.sunset,
+        ...COLOR_PALETTES.gold,
         ...COLOR_PALETTES.earth,
-        ...COLOR_PALETTES.warm,
+        ...COLOR_PALETTES.slate,
     ];
     let colorProgress = 0;
     let autoColorMode = true;
