@@ -7,144 +7,169 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/litterrobot.css">
 </head>
-<body>
-    <!-- Collaborative drawing canvas -->
-    <canvas id="whiteboard"></canvas>
-
-    <!-- Mobile draw mode toggle -->
-    <button class="mobile-draw-toggle" aria-label="Toggle draw mode">
-        <span class="toggle-icon">✎</span>
-    </button>
-
-    <!-- Subtle drawing toolbar -->
-    <div class="draw-toolbar">
-        <div class="toolbar-group sizes">
-            <button class="size-btn" data-size="2" title="Fine"><span></span></button>
-            <button class="size-btn active" data-size="4" title="Medium"><span></span></button>
-            <button class="size-btn" data-size="8" title="Thick"><span></span></button>
-        </div>
-        <div class="toolbar-divider"></div>
-        <div class="toolbar-group colors">
-            <button class="color-btn active" data-color="auto" title="Auto colors">
-                <span class="rainbow"></span>
-            </button>
-            <button class="color-btn" data-color="#2d5a3d" title="Forest"></button>
-            <button class="color-btn" data-color="#c45d3a" title="Terracotta"></button>
-            <button class="color-btn" data-color="#6b4423" title="Brown"></button>
-            <button class="color-btn" data-color="#5c5347" title="Warm gray"></button>
-        </div>
-        <div class="toolbar-divider"></div>
-        <div class="toolbar-group tools">
-            <button class="tool-btn" data-tool="eraser" title="Eraser">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M20 20H7L3 16c-.8-.8-.8-2 0-2.8L14.6 1.6c.8-.8 2-.8 2.8 0l5 5c.8.8.8 2 0 2.8L11 20"/>
-                </svg>
-            </button>
-            <button class="tool-btn" data-tool="clear" title="Clear all">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/>
-                </svg>
-            </button>
-        </div>
-    </div>
-
-    <main>
-        <header>
+<body class="dashboard-page">
+    <main class="dashboard-fullwidth">
+        <header class="dashboard-header">
             <a href="index.html" class="back-link">back to home</a>
             <h1>Tot's Litter Box</h1>
-            <p class="tagline">Live stats from the throne</p>
         </header>
 
-        <hr>
-
-        <!-- Current Status Section -->
-        <section id="current-status">
-            <div class="dashboard-grid">
+        <!-- Compact Dashboard Layout -->
+        <div class="dashboard-compact">
+            <!-- Top Row: Status + Stats -->
+            <div class="top-row">
                 <!-- Status Card -->
-                <div class="dashboard-card">
-                    <h3>Status</h3>
-                    <div class="status-display">
+                <div class="status-card">
+                    <div class="status-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 6v6l4 2"/>
+                        </svg>
+                    </div>
+                    <div class="status-info">
                         <span id="status-badge" class="status-badge loading">Loading...</span>
+                        <p class="last-updated">Updated <span id="last-updated">--</span></p>
                     </div>
-                    <p class="last-updated">Updated <span id="last-updated">--</span></p>
                 </div>
 
-                <!-- Waste Level Card -->
-                <div class="dashboard-card">
-                    <h3>Waste Drawer</h3>
-                    <div class="waste-level">
-                        <div class="progress-bar">
-                            <div id="waste-fill" class="progress-fill" style="width: 0%"></div>
+                <!-- Waste Level -->
+                <div class="stat-card waste-card">
+                    <div class="stat-icon waste-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/>
+                        </svg>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-label">Waste Drawer</span>
+                        <div class="waste-level">
+                            <div class="progress-bar">
+                                <div id="waste-fill" class="progress-fill" style="width: 0%"></div>
+                            </div>
+                            <span id="waste-percent" class="waste-percent">--%</span>
                         </div>
-                        <span id="waste-percent" class="waste-percent">--%</span>
+                    </div>
+                </div>
+
+                <!-- Today's Visits -->
+                <div class="stat-card">
+                    <div class="stat-icon visits-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 22c1-3 6-6 6-10a6 6 0 10-12 0c0 4 5 7 6 10z"/>
+                            <circle cx="12" cy="12" r="2"/>
+                        </svg>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-label">Today's Visits</span>
+                        <span id="today-visits" class="stat-value">--</span>
+                    </div>
+                </div>
+
+                <!-- Today's Cycles -->
+                <div class="stat-card">
+                    <div class="stat-icon cycles-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 12a9 9 0 11-9-9"/>
+                            <polyline points="21 3 21 9 15 9"/>
+                        </svg>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-label">Today's Cycles</span>
+                        <span id="today-cycles" class="stat-value">--</span>
+                    </div>
+                </div>
+
+                <!-- Weight -->
+                <div class="stat-card">
+                    <div class="stat-icon weight-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M6 18L18 6M6 6l12 12"/>
+                            <circle cx="12" cy="12" r="9"/>
+                        </svg>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-label">Tot's Weight</span>
+                        <span id="last-weight" class="stat-value">-- lbs</span>
+                    </div>
+                </div>
+
+                <!-- Last Cycle -->
+                <div class="stat-card">
+                    <div class="stat-icon cycle-time-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-label">Last Cycle</span>
+                        <span id="last-cycle" class="stat-value">--</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Stats Row -->
-            <div class="stats-row">
-                <div class="stat-item">
-                    <span class="stat-label">Last Cycle</span>
-                    <span id="last-cycle" class="stat-value">--</span>
+            <!-- Charts Row -->
+            <div class="charts-row">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <svg class="chart-icon visits-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 22c1-3 6-6 6-10a6 6 0 10-12 0c0 4 5 7 6 10z"/>
+                        </svg>
+                        <h3>Daily Visits</h3>
+                        <div class="chart-toggles" data-chart="visits">
+                            <button class="toggle-btn" data-days="7">7d</button>
+                            <button class="toggle-btn active" data-days="14">14d</button>
+                            <button class="toggle-btn" data-days="30">30d</button>
+                            <button class="toggle-btn" data-days="365">1y</button>
+                            <button class="toggle-btn" data-days="all">All</button>
+                        </div>
+                    </div>
+                    <div class="chart-wrapper"><canvas id="visits-chart"></canvas></div>
                 </div>
-                <div class="stat-item">
-                    <span class="stat-label">Tot's Weight</span>
-                    <span id="last-weight" class="stat-value">-- lbs</span>
+
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <svg class="chart-icon cycles-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 12a9 9 0 11-9-9"/><polyline points="21 3 21 9 15 9"/>
+                        </svg>
+                        <h3>Daily Cycles</h3>
+                        <div class="chart-toggles" data-chart="cycles">
+                            <button class="toggle-btn" data-days="7">7d</button>
+                            <button class="toggle-btn active" data-days="14">14d</button>
+                            <button class="toggle-btn" data-days="30">30d</button>
+                            <button class="toggle-btn" data-days="365">1y</button>
+                            <button class="toggle-btn" data-days="all">All</button>
+                        </div>
+                    </div>
+                    <div class="chart-wrapper"><canvas id="cycles-chart"></canvas></div>
                 </div>
-                <div class="stat-item">
-                    <span class="stat-label">Today's Visits</span>
-                    <span id="today-visits" class="stat-value">--</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Today's Cycles</span>
-                    <span id="today-cycles" class="stat-value">--</span>
+
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <svg class="chart-icon weight-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="9"/><path d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                        <h3>Weight Trend</h3>
+                        <div class="chart-toggles" data-chart="weight">
+                            <button class="toggle-btn" data-days="7">7d</button>
+                            <button class="toggle-btn active" data-days="14">14d</button>
+                            <button class="toggle-btn" data-days="30">30d</button>
+                            <button class="toggle-btn" data-days="365">1y</button>
+                            <button class="toggle-btn" data-days="all">All</button>
+                        </div>
+                    </div>
+                    <div class="chart-wrapper"><canvas id="weight-chart"></canvas></div>
                 </div>
             </div>
-        </section>
+        </div>
 
-        <hr>
-
-        <!-- Charts Section -->
-        <section id="charts">
-            <h2>History</h2>
-
-            <div class="chart-container">
-                <h3>Daily Visits</h3>
-                <canvas id="visits-chart"></canvas>
-                <p class="chart-note" id="visits-note">Last 14 days</p>
-            </div>
-
-            <div class="chart-container">
-                <h3>Daily Cycles</h3>
-                <canvas id="cycles-chart"></canvas>
-                <p class="chart-note" id="cycles-note">Last 14 days</p>
-            </div>
-
-            <div class="chart-container">
-                <h3>Tot's Weight</h3>
-                <canvas id="weight-chart"></canvas>
-                <p class="chart-note" id="weight-note">Recent measurements</p>
-            </div>
-        </section>
-
-        <hr>
-
-        <footer>
-            <p class="small">Data refreshes every 60 seconds</p>
+        <footer class="dashboard-footer">
+            <p class="small">Live data from Tot's throne</p>
         </footer>
     </main>
 
-    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-
-    <!-- Main site JS (for drawing) -->
-    <script src="js/main.js"></script>
-
-    <!-- Dashboard JS -->
     <script src="js/litterrobot.js"></script>
 </body>
 </html>
