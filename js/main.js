@@ -52,8 +52,13 @@
         ]
     };
 
-    const PALETTE_NAMES = Object.keys(COLOR_PALETTES);
-    let currentPaletteIndex = 0;
+    // Flatten all colors into one continuous rainbow
+    const ALL_COLORS = [
+        ...COLOR_PALETTES.forest,
+        ...COLOR_PALETTES.terracotta,
+        ...COLOR_PALETTES.earth,
+        ...COLOR_PALETTES.warm,
+    ];
     let colorProgress = 0;
     let autoColorMode = true;
 
@@ -68,26 +73,33 @@
     function getFlowingColor() {
         if (!autoColorMode) return null;
 
-        const palette = COLOR_PALETTES[PALETTE_NAMES[currentPaletteIndex]];
-        const segmentLength = 1 / (palette.length - 1);
-        const segment = Math.floor(colorProgress / segmentLength);
-        const segmentProgress = (colorProgress % segmentLength) / segmentLength;
+        // Use time + stroke progress for continuous color evolution
+        const timeOffset = (Date.now() / 3000) % 1;  // Slow time-based drift
+        const combinedProgress = (colorProgress + timeOffset) % 1;
 
-        const c1 = palette[Math.min(segment, palette.length - 1)];
-        const c2 = palette[Math.min(segment + 1, palette.length - 1)];
-        const color = lerpColor(c1, c2, segmentProgress);
+        // Smoothly interpolate through ALL colors
+        const totalColors = ALL_COLORS.length;
+        const scaledProgress = combinedProgress * totalColors;
+        const colorIndex = Math.floor(scaledProgress);
+        const t = scaledProgress - colorIndex;
 
-        // Add subtle opacity variation for watercolor effect
-        const opacity = 0.4 + Math.sin(colorProgress * Math.PI * 4) * 0.15;
+        const c1 = ALL_COLORS[colorIndex % totalColors];
+        const c2 = ALL_COLORS[(colorIndex + 1) % totalColors];
+        const color = lerpColor(c1, c2, t);
+
+        // Dynamic opacity with multiple wave frequencies
+        const wave1 = Math.sin(combinedProgress * Math.PI * 6) * 0.1;
+        const wave2 = Math.sin(Date.now() / 500) * 0.05;
+        const opacity = 0.45 + wave1 + wave2;
 
         return `rgba(${color.r}, ${color.g}, ${color.b}, ${opacity.toFixed(2)})`;
     }
 
     function advanceColor() {
-        colorProgress += 0.008;
+        // Faster progression through colors
+        colorProgress += 0.025;
         if (colorProgress >= 1) {
             colorProgress = 0;
-            currentPaletteIndex = (currentPaletteIndex + 1) % PALETTE_NAMES.length;
         }
     }
 
