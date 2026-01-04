@@ -1,0 +1,508 @@
+/* ==========================================================================
+   Music Maker Styles
+   ========================================================================== */
+
+/* Creator Section */
+.creator-section {
+    pointer-events: auto;
+    background: var(--light);
+    border-radius: 8px;
+    padding: 1.25rem;
+}
+
+.creator-header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 1.25rem;
+}
+
+/* Mode Toggle */
+.mode-toggle {
+    display: flex;
+    background: var(--white);
+    border-radius: 6px;
+    padding: 3px;
+}
+
+.mode-btn {
+    padding: 0.4rem 0.8rem;
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: var(--gray);
+    transition: all 0.2s ease;
+}
+
+.mode-btn:hover {
+    color: var(--black);
+}
+
+.mode-btn.active {
+    background: var(--accent);
+    color: white;
+}
+
+/* Tempo Control */
+.tempo-control {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.tempo-control label {
+    font-size: 0.85rem;
+    color: var(--gray);
+}
+
+.tempo-control select,
+.tempo-control input[type="range"] {
+    cursor: pointer;
+}
+
+#tempo-slider {
+    width: 100px;
+}
+
+#tempo-value {
+    font-size: 0.85rem;
+    min-width: 2rem;
+}
+
+/* Control Buttons */
+.creator-controls {
+    display: flex;
+    gap: 0.5rem;
+    margin-left: auto;
+}
+
+.control-btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+}
+
+.control-btn.play {
+    background: var(--accent);
+    color: white;
+}
+
+.control-btn.play:hover {
+    background: #1e4a2d;
+}
+
+.control-btn.stop {
+    background: var(--warm);
+    color: white;
+}
+
+.control-btn.stop:hover {
+    background: #a33d1a;
+}
+
+.control-btn.clear {
+    background: var(--light);
+    color: var(--gray);
+    border: 1px solid #ddd;
+}
+
+.control-btn.clear:hover {
+    background: #ddd;
+}
+
+.control-btn.save {
+    background: var(--accent);
+    color: white;
+}
+
+.control-btn.save:hover {
+    background: #1e4a2d;
+}
+
+/* Sequencer Grid */
+.sequencer {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.track-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.section-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--gray);
+    margin-bottom: 0.25rem;
+}
+
+.tracks {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.track-row {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.track-label {
+    width: 60px;
+    font-size: 0.75rem;
+    color: var(--gray);
+    text-align: right;
+    padding-right: 0.5rem;
+    flex-shrink: 0;
+}
+
+.track-cells {
+    display: flex;
+    gap: 2px;
+    flex: 1;
+}
+
+.cell {
+    width: 100%;
+    aspect-ratio: 1;
+    max-width: 32px;
+    background: var(--white);
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.1s ease;
+}
+
+.cell:hover {
+    border-color: var(--accent);
+    transform: scale(1.05);
+}
+
+.cell.active {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.cell.active.drum {
+    background: var(--warm);
+    border-color: var(--warm);
+}
+
+.cell.playing {
+    box-shadow: 0 0 8px rgba(45, 90, 61, 0.6);
+}
+
+/* Beat markers (every 4 steps) */
+.cell:nth-child(4n+1) {
+    border-left-width: 2px;
+    border-left-color: #bbb;
+}
+
+/* Playhead */
+.playhead {
+    position: absolute;
+    width: 2px;
+    background: var(--accent);
+    pointer-events: none;
+    z-index: 10;
+}
+
+/* Bar Library */
+.bar-library {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.75rem;
+    pointer-events: auto;
+}
+
+.bar-card {
+    background: var(--light);
+    border-radius: 8px;
+    padding: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+}
+
+.bar-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+}
+
+.bar-card .bar-name {
+    font-weight: 500;
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bar-card .bar-creator {
+    font-size: 0.75rem;
+    color: var(--gray);
+    margin-bottom: 0.5rem;
+}
+
+.bar-card .bar-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.bar-card .bar-btn {
+    flex: 1;
+    padding: 0.35rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.bar-card .bar-btn.preview {
+    background: var(--white);
+    color: var(--gray);
+}
+
+.bar-card .bar-btn.preview:hover {
+    background: var(--accent);
+    color: white;
+}
+
+.bar-card .bar-btn.add {
+    background: var(--accent);
+    color: white;
+}
+
+.bar-card .bar-btn.add:hover {
+    background: #1e4a2d;
+}
+
+/* Mini grid preview */
+.bar-preview {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    gap: 1px;
+    margin-bottom: 0.5rem;
+    height: 20px;
+}
+
+.bar-preview .mini-cell {
+    background: #ddd;
+    border-radius: 1px;
+}
+
+.bar-preview .mini-cell.active {
+    background: var(--accent);
+}
+
+/* Song Timeline / Arranger */
+.arranger-controls {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    pointer-events: auto;
+}
+
+.song-timeline {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    min-height: 80px;
+    background: var(--light);
+    border-radius: 8px;
+    padding: 1rem;
+    pointer-events: auto;
+    align-items: flex-start;
+    align-content: flex-start;
+}
+
+.timeline-hint {
+    color: var(--gray);
+    font-size: 0.85rem;
+    margin: 0;
+    width: 100%;
+    text-align: center;
+    padding: 1rem 0;
+}
+
+.timeline-bar {
+    background: var(--white);
+    border: 2px solid var(--accent);
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    cursor: grab;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.timeline-bar:hover {
+    background: var(--accent);
+    color: white;
+}
+
+.timeline-bar.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+}
+
+.timeline-bar .remove-bar {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--gray);
+    font-size: 1rem;
+    padding: 0;
+    line-height: 1;
+}
+
+.timeline-bar:hover .remove-bar {
+    color: white;
+}
+
+/* Saved Songs List */
+.song-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    pointer-events: auto;
+}
+
+.song-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--light);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+}
+
+.song-item .song-info {
+    flex: 1;
+}
+
+.song-item .song-name {
+    font-weight: 500;
+}
+
+.song-item .song-meta {
+    font-size: 0.75rem;
+    color: var(--gray);
+}
+
+.song-item .song-btn {
+    padding: 0.4rem 0.8rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    background: var(--accent);
+    color: white;
+}
+
+.song-item .song-btn:hover {
+    background: #1e4a2d;
+}
+
+/* Modal */
+.modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 350px;
+}
+
+.modal-content h3 {
+    margin-bottom: 1rem;
+}
+
+.modal-content label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--gray);
+    margin-bottom: 0.25rem;
+}
+
+.modal-content input {
+    width: 100%;
+    padding: 0.6rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    font-size: 1rem;
+}
+
+.modal-content input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.modal-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+/* Loading / Empty states */
+.loading, .section-hint {
+    color: var(--gray);
+    font-size: 0.85rem;
+    font-style: italic;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .creator-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .creator-controls {
+        margin-left: 0;
+        justify-content: center;
+    }
+
+    .track-label {
+        width: 45px;
+        font-size: 0.65rem;
+    }
+
+    .cell {
+        max-width: 20px;
+    }
+
+    .bar-library {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    }
+}
