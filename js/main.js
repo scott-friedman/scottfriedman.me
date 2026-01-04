@@ -19,6 +19,13 @@
         appId: "1:1046658110090:web:49a24a0ff13b19cb111373"
     };
 
+    // Get page identifier for page-specific drawings
+    function getPageId() {
+        const path = window.location.pathname;
+        const page = path.split('/').pop().replace('.html', '') || 'index';
+        return page;
+    }
+
     // ==========================================================================
     // Beautiful Color System
     // ==========================================================================
@@ -100,6 +107,7 @@
     let strokesRef = null;
     let currentStroke = [];
     let hasDrawn = false;
+    let lastClearedTimestamp = 0;
 
     // Drawing settings
     let lineWidth = 4;
@@ -145,17 +153,31 @@
             return false;
         }
         try {
-            firebase.initializeApp(FIREBASE_CONFIG);
+            // Prevent re-initialization
+            if (!firebase.apps.length) {
+                firebase.initializeApp(FIREBASE_CONFIG);
+            }
             db = firebase.database();
-            strokesRef = db.ref('strokes');
+
+            const pageId = getPageId();
+            strokesRef = db.ref('strokes/' + pageId);
+
+            // Load existing strokes and listen for new ones
             strokesRef.on('child_added', (snapshot) => {
                 const stroke = snapshot.val();
                 if (stroke && stroke.points) drawStroke(stroke.points, stroke.color, stroke.width);
             });
-            db.ref('canvas_cleared').on('value', (snapshot) => {
-                if (snapshot.val()) ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Listen for canvas clear events (only respond to NEW clears)
+            db.ref('canvas_cleared/' + pageId).on('value', (snapshot) => {
+                const cleared = snapshot.val();
+                if (cleared && cleared > lastClearedTimestamp) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    lastClearedTimestamp = cleared;
+                }
             });
-            console.log('Firebase connected!');
+
+            console.log('Firebase connected for page:', pageId);
             return true;
         } catch (e) {
             console.log('Firebase init failed:', e);
@@ -285,8 +307,9 @@
     function clearCanvas() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         if (db) {
-            db.ref('canvas_cleared').set(Date.now());
-            strokesRef.remove();
+            const pageId = getPageId();
+            db.ref('canvas_cleared/' + pageId).set(Date.now());
+            db.ref('strokes/' + pageId).remove();
         }
     }
 
