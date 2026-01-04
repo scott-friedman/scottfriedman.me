@@ -462,6 +462,7 @@ You can use HTML tags like:
             document.getElementById('save-bar').style.display = 'flex';
             loadCurrentContent();
             loadPages();
+            loadCommandCenter();
         }
 
         document.getElementById('password-input').addEventListener('keypress', (e) => {
@@ -968,7 +969,8 @@ You can use HTML tags like:
                     entityId: device.entity_id || decodeFirebaseKey(key),
                     name: device.name,
                     emoji: device.emoji,
-                    type: device.type
+                    type: device.type,
+                    enabled: device.enabled !== false // Default to true
                 }));
                 renderCCDevices();
             });
@@ -1008,11 +1010,19 @@ You can use HTML tags like:
                 container.innerHTML = '<p style="color: #999; text-align: center; padding: 1rem;">No devices configured. Add one below!</p>';
                 return;
             }
-            container.innerHTML = ccDevices.map((d, i) => `
-                <div class="item">
+            container.innerHTML = ccDevices.map((d, i) => {
+                const isEnabled = d.enabled !== false; // Default to enabled
+                return `
+                <div class="item" style="${!isEnabled ? 'opacity: 0.6;' : ''}">
                     <div class="item-header">
                         <span class="item-title">${d.emoji || '🔌'} ${d.name || 'Device ' + (i+1)}</span>
-                        <button class="remove-btn" onclick="removeCCDevice(${i})">×</button>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <button class="btn-small" onclick="toggleCCDeviceEnabled(${i})"
+                                    style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: ${isEnabled ? '#2d5a3d' : '#999'}; color: white;">
+                                ${isEnabled ? 'Enabled' : 'Disabled'}
+                            </button>
+                            <button class="remove-btn" onclick="removeCCDevice(${i})">×</button>
+                        </div>
                     </div>
                     <div class="inline-fields">
                         <input type="text" placeholder="Entity ID (e.g., light.bedroom)" value="${esc(d.entityId)}"
@@ -1030,7 +1040,12 @@ You can use HTML tags like:
                         </select>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
+        }
+
+        function toggleCCDeviceEnabled(i) {
+            ccDevices[i].enabled = ccDevices[i].enabled === false ? true : false;
+            renderCCDevices();
         }
 
         function addCCDevice() {
@@ -1064,7 +1079,8 @@ You can use HTML tags like:
                     entity_id: d.entityId, // Store actual entity_id as field
                     name: d.name || d.entityId,
                     emoji: d.emoji || '🔌',
-                    type: d.type || 'switch'
+                    type: d.type || 'switch',
+                    enabled: d.enabled !== false // Default to true
                 };
             });
 
@@ -1110,13 +1126,6 @@ You can use HTML tags like:
             if (!confirm('Clear all activity logs?')) return;
             db.ref('commandcenter/log').remove();
         }
-
-        // Load command center when showing admin
-        const originalShowAdmin = showAdmin;
-        showAdmin = function() {
-            originalShowAdmin();
-            loadCommandCenter();
-        };
     </script>
 </body>
 </html>

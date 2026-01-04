@@ -1,0 +1,16 @@
+# Cloudflare Worker configuration for Home Assistant proxy
+# Deploy with: npx wrangler deploy
+
+name = "ha-command-center"
+main = "ha-proxy.js"
+compatibility_date = "2024-01-01"
+
+# After deploying, set these secrets via:
+# npx wrangler secret put HA_URL
+# npx wrangler secret put HA_TOKEN
+# npx wrangler secret put FIREBASE_URL
+
+[vars]
+# Non-secret variables can go here
+# FIREBASE_URL can be here if you prefer (it's not secret)
+FIREBASE_URL = "https://scottfriedman-f400d-default-rtdb.firebaseio.com"

@@ -1,0 +1,355 @@
+/**
+ * Home Assistant Proxy Worker
+ *
+ * Cloudflare Worker that securely proxies requests to Home Assistant.
+ * Keeps the HA token server-side and only allows whitelisted devices/actions.
+ *
+ * Environment Variables (set in Cloudflare dashboard):
+ * - HA_URL: Your Nabu Casa URL (e.g., https://xxxxxxxx.ui.nabu.casa)
+ * - HA_TOKEN: Long-Lived Access Token from Home Assistant
+ * - FIREBASE_URL: Firebase Realtime Database URL
+ *
+ * Deploy: wrangler deploy
+ */
+
+// CORS headers for your domain
+// Note: Also allows localhost for testing - remove in production if desired
+const ALLOWED_ORIGINS = [
+    'https://scottfriedman.ooo',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000'
+];
+
+function getCorsHeaders(request) {
+    const origin = request.headers.get('Origin') || '';
+    const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+    return {
+        'Access-Control-Allow-Origin': allowedOrigin,
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Max-Age': '86400',
+    };
+}
+
+// Allowed actions (whitelist)
+const ALLOWED_ACTIONS = ['turn_on', 'turn_off', 'set_percentage'];
+
+export default {
+    async fetch(request, env, ctx) {
+        const corsHeaders = getCorsHeaders(request);
+
+        // Handle CORS preflight
+        if (request.method === 'OPTIONS') {
+            return new Response(null, { headers: corsHeaders });
+        }
+
+        const url = new URL(request.url);
+        const path = url.pathname;
+
+        try {
+            // Route handling
+            if (path === '/api/status') {
+                return await handleStatus(env, corsHeaders);
+            }
+
+            if (path === '/api/state') {
+                return await handleGetState(env, corsHeaders);
+            }
+
+            if (path === '/api/control' && request.method === 'POST') {
+                return await handleControl(request, env, corsHeaders);
+            }
+
+            if (path === '/api/devices') {
+                return await handleGetDevices(env, corsHeaders);
+            }
+
+            return jsonResponse({ error: 'Not found' }, 404, corsHeaders);
+        } catch (error) {
+            console.error('Worker error:', error);
+            return jsonResponse({ error: 'Internal server error' }, 500, corsHeaders);
+        }
+    }
+};
+
+/**
+ * Check if command center is enabled
+ */
+async function checkEnabled(env) {
+    try {
+        const response = await fetch(
+            `${env.FIREBASE_URL}/commandcenter/enabled.json`
+        );
+        const enabled = await response.json();
+        return enabled === true;
+    } catch (error) {
+        console.error('Firebase check failed:', error);
+        return false; // Fail closed
+    }
+}
+
+/**
+ * Get allowed devices from Firebase
+ * Returns object keyed by actual entity_id (decoded from Firebase keys)
+ * Only returns devices that are individually enabled
+ */
+async function getAllowedDevices(env) {
+    try {
+        const response = await fetch(
+            `${env.FIREBASE_URL}/commandcenter/devices.json`
+        );
+        const rawDevices = await response.json();
+        if (!rawDevices) return {};
+
+        // Convert Firebase structure to entity_id keyed object
+        // Only include devices that are enabled (enabled !== false)
+        const devices = {};
+        for (const [key, device] of Object.entries(rawDevices)) {
+            // Skip disabled devices
+            if (device.enabled === false) continue;
+
+            // Use entity_id field if present, otherwise decode the key
+            const entityId = device.entity_id || key.replace(/__/g, '.');
+            devices[entityId] = {
+                name: device.name,
+                emoji: device.emoji,
+                type: device.type
+            };
+        }
+        return devices;
+    } catch (error) {
+        console.error('Failed to get devices:', error);
+        return {};
+    }
+}
+
+/**
+ * Log action to Firebase
+ */
+async function logAction(env, entityId, action, deviceName) {
+    try {
+        await fetch(
+            `${env.FIREBASE_URL}/commandcenter/log.json`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    entity_id: entityId,
+                    action: action,
+                    deviceName: deviceName,
+                    timestamp: Date.now()
+                })
+            }
+        );
+    } catch (error) {
+        console.error('Failed to log action:', error);
+    }
+}
+
+/**
+ * GET /api/status - Check if command center is enabled
+ */
+async function handleStatus(env, corsHeaders) {
+    const enabled = await checkEnabled(env);
+    return jsonResponse({ enabled }, 200, corsHeaders);
+}
+
+/**
+ * GET /api/devices - Get list of allowed devices with names
+ */
+async function handleGetDevices(env, corsHeaders) {
+    const devices = await getAllowedDevices(env);
+    return jsonResponse({ devices }, 200, corsHeaders);
+}
+
+/**
+ * GET /api/state - Get current state of all allowed devices
+ */
+async function handleGetState(env, corsHeaders) {
+    const devices = await getAllowedDevices(env);
+    const entityIds = Object.keys(devices);
+
+    if (entityIds.length === 0) {
+        return jsonResponse({ states: {} }, 200, corsHeaders);
+    }
+
+    try {
+        // Fetch states from Home Assistant
+        const response = await fetch(
+            `${env.HA_URL}/api/states`,
+            {
+                headers: {
+                    'Authorization': `Bearer ${env.HA_TOKEN}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(`HA API error: ${response.status}`);
+        }
+
+        const allStates = await response.json();
+
+        // Filter to only allowed entities
+        const states = {};
+        for (const state of allStates) {
+            if (entityIds.includes(state.entity_id)) {
+                const deviceInfo = {
+                    state: state.state,
+                    name: devices[state.entity_id]?.name || state.attributes?.friendly_name,
+                    emoji: devices[state.entity_id]?.emoji || '',
+                    type: devices[state.entity_id]?.type || 'switch'
+                };
+
+                // Add light-specific attributes
+                if (state.entity_id.startsWith('light.')) {
+                    if (state.attributes?.brightness !== undefined) {
+                        deviceInfo.brightness = Math.round((state.attributes.brightness / 255) * 100);
+                    }
+                    if (state.attributes?.rgb_color) {
+                        deviceInfo.rgb_color = state.attributes.rgb_color;
+                    }
+                    if (state.attributes?.hs_color) {
+                        deviceInfo.hs_color = state.attributes.hs_color;
+                    }
+                    if (state.attributes?.color_mode) {
+                        deviceInfo.color_mode = state.attributes.color_mode;
+                    }
+                    // Check if light supports color
+                    deviceInfo.supports_color = state.attributes?.supported_color_modes?.some(
+                        mode => ['rgb', 'rgbw', 'rgbww', 'hs', 'xy'].includes(mode)
+                    ) || false;
+                }
+
+                // Add fan-specific attributes
+                if (state.entity_id.startsWith('fan.')) {
+                    if (state.attributes?.percentage !== undefined) {
+                        deviceInfo.percentage = state.attributes.percentage;
+                    }
+                    if (state.attributes?.preset_mode) {
+                        deviceInfo.preset_mode = state.attributes.preset_mode;
+                    }
+                }
+
+                states[state.entity_id] = deviceInfo;
+            }
+        }
+
+        return jsonResponse({ states }, 200, corsHeaders);
+    } catch (error) {
+        console.error('Failed to get HA states:', error);
+        return jsonResponse({ error: 'Failed to get device states' }, 500, corsHeaders);
+    }
+}
+
+/**
+ * POST /api/control - Control a device
+ * Body: { entity_id: string, action: "turn_on" | "turn_off" | "set_percentage", ...params }
+ * Optional params for turn_on: rgb_color ([r,g,b]), brightness (0-100)
+ * Optional params for set_percentage: percentage (0-100)
+ */
+async function handleControl(request, env, corsHeaders) {
+    // Check if enabled
+    const enabled = await checkEnabled(env);
+    if (!enabled) {
+        return jsonResponse({ error: 'Command center is currently disabled' }, 403, corsHeaders);
+    }
+
+    // Parse request body
+    let body;
+    try {
+        body = await request.json();
+    } catch {
+        return jsonResponse({ error: 'Invalid JSON' }, 400, corsHeaders);
+    }
+
+    const { entity_id, action, rgb_color, brightness, percentage } = body;
+
+    // Validate action
+    if (!ALLOWED_ACTIONS.includes(action)) {
+        return jsonResponse({ error: 'Invalid action' }, 400, corsHeaders);
+    }
+
+    // Validate entity is allowed
+    const devices = await getAllowedDevices(env);
+    if (!devices[entity_id]) {
+        return jsonResponse({ error: 'Device not allowed' }, 403, corsHeaders);
+    }
+
+    // Determine the HA service based on entity type and action
+    const entityType = entity_id.split('.')[0]; // e.g., "light", "fan", "switch"
+
+    // Build service data
+    const serviceData = { entity_id };
+
+    // Add optional parameters for lights
+    if (entityType === 'light' && action === 'turn_on') {
+        if (rgb_color && Array.isArray(rgb_color) && rgb_color.length === 3) {
+            serviceData.rgb_color = rgb_color;
+        }
+        if (brightness !== undefined) {
+            // Convert 0-100 to 0-255
+            serviceData.brightness = Math.round((brightness / 100) * 255);
+        }
+    }
+
+    // Add percentage for fans
+    if (entityType === 'fan' && action === 'set_percentage') {
+        if (percentage !== undefined) {
+            serviceData.percentage = percentage;
+        }
+    }
+
+    try {
+        // Call Home Assistant API
+        const response = await fetch(
+            `${env.HA_URL}/api/services/${entityType}/${action}`,
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${env.HA_TOKEN}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(serviceData)
+            }
+        );
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('HA API error:', errorText);
+            return jsonResponse({ error: 'Failed to control device' }, 500, corsHeaders);
+        }
+
+        // Build log message
+        let logMessage = action;
+        if (rgb_color) logMessage += ` (color)`;
+        if (percentage !== undefined) logMessage += ` (${percentage}%)`;
+
+        // Log the action
+        await logAction(env, entity_id, logMessage, devices[entity_id]?.name);
+
+        return jsonResponse({
+            success: true,
+            entity_id,
+            action,
+            message: `${devices[entity_id]?.name || entity_id} updated`
+        }, 200, corsHeaders);
+    } catch (error) {
+        console.error('Failed to control device:', error);
+        return jsonResponse({ error: 'Failed to control device' }, 500, corsHeaders);
+    }
+}
+
+/**
+ * Helper to create JSON responses with CORS headers
+ */
+function jsonResponse(data, status = 200, corsHeaders = {}) {
+    return new Response(JSON.stringify(data), {
+        status,
+        headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders
+        }
+    });
+}
