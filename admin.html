@@ -97,8 +97,6 @@
             position: relative;
             transition: all 0.15s ease;
         }
-        .item.dragging { opacity: 0.5; background: #e8e8e8; }
-        .item.drag-over { border-top: 3px solid #2d5a3d; margin-top: -3px; }
         .item input, .item textarea, .item select { margin-bottom: 0.5rem; }
         .item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
         .item-title { font-weight: 500; font-size: 0.9rem; }
@@ -112,20 +110,39 @@
         }
         .remove-btn:hover { color: #a33d1a; }
 
-        /* Drag handle */
-        .drag-handle {
+        /* Order controls */
+        .order-controls {
             position: absolute;
             left: 0.5rem;
             top: 50%;
             transform: translateY(-50%);
-            cursor: grab;
-            color: #bbb;
-            font-size: 1.2rem;
-            user-select: none;
-            padding: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
         }
-        .drag-handle:hover { color: #888; }
-        .drag-handle:active { cursor: grabbing; }
+        .order-input {
+            width: 28px !important;
+            height: 24px;
+            text-align: center;
+            padding: 2px !important;
+            font-size: 0.75rem !important;
+            margin: 0 !important;
+            border-radius: 4px;
+        }
+        .order-btn {
+            background: none;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            cursor: pointer;
+            padding: 0;
+            width: 20px;
+            height: 16px;
+            font-size: 0.6rem;
+            color: #888;
+            line-height: 1;
+        }
+        .order-btn:hover { background: #eee; color: #333; }
 
         /* Section reordering */
         .section {
@@ -137,20 +154,32 @@
             position: relative;
             transition: all 0.15s ease;
         }
-        .section.dragging { opacity: 0.5; }
-        .section.drag-over { border-top: 3px solid #2d5a3d; margin-top: -3px; }
-        .section-drag-handle {
+        .section-order-controls {
             position: absolute;
             right: 1rem;
             top: 1rem;
-            cursor: grab;
-            color: #ccc;
-            font-size: 1rem;
-            user-select: none;
-            padding: 0.25rem;
+            display: flex;
+            gap: 0.25rem;
+            align-items: center;
         }
-        .section-drag-handle:hover { color: #888; }
-        .section-drag-handle:active { cursor: grabbing; }
+        .section-order-input {
+            width: 32px !important;
+            height: 26px;
+            text-align: center;
+            padding: 2px !important;
+            font-size: 0.8rem !important;
+            margin: 0 !important;
+        }
+        .section-order-btn {
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            color: #666;
+        }
+        .section-order-btn:hover { background: #e0e0e0; }
 
         .add-btn {
             background: #f0f0f0;
@@ -440,11 +469,6 @@ You can use HTML tags like:
         let editingPageSlug = null;
         let sectionOrder = ['about', 'projects', 'writing', 'sounds', 'contact'];
 
-        // Drag state
-        let draggedItem = null;
-        let draggedItemType = null;
-        let draggedSection = null;
-
         function loadCurrentContent() {
             db.ref('content').once('value').then((snapshot) => {
                 const data = snapshot.val() || DEFAULTS;
@@ -483,9 +507,6 @@ You can use HTML tags like:
             const container = document.getElementById('sections-container');
             container.innerHTML = sectionOrder.map(section => getSectionHTML(section)).join('');
 
-            // Setup drag handlers for sections
-            setupSectionDrag();
-
             // Render items within each section
             if (document.getElementById('projects-container')) renderProjectItems();
             if (document.getElementById('writing-container')) renderWritingItems();
@@ -494,11 +515,20 @@ You can use HTML tags like:
         }
 
         function getSectionHTML(section) {
+            const idx = sectionOrder.indexOf(section) + 1;
+            const orderControls = `
+                <div class="section-order-controls">
+                    <button class="section-order-btn" onclick="moveSectionUp('${section}')" title="Move up">▲</button>
+                    <input type="number" class="section-order-input" value="${idx}" min="1" max="${sectionOrder.length}"
+                           onchange="moveSectionTo('${section}', this.value)">
+                    <button class="section-order-btn" onclick="moveSectionDown('${section}')" title="Move down">▼</button>
+                </div>`;
+
             switch(section) {
                 case 'about':
                     return `
-                        <div class="section" data-section="about" draggable="true">
-                            <span class="section-drag-handle" title="Drag to reorder">⋮⋮</span>
+                        <div class="section" data-section="about">
+                            ${orderControls}
                             <h2>About</h2>
                             <label>Paragraph 1</label>
                             <textarea id="about-p1" placeholder="First paragraph...">${esc(window.aboutParas?.[0] || '')}</textarea>
@@ -507,8 +537,8 @@ You can use HTML tags like:
                         </div>`;
                 case 'projects':
                     return `
-                        <div class="section" data-section="projects" draggable="true">
-                            <span class="section-drag-handle" title="Drag to reorder">⋮⋮</span>
+                        <div class="section" data-section="projects">
+                            ${orderControls}
                             <h2>Projects</h2>
                             <p style="color: #666; font-size: 0.85rem; margin-bottom: 1rem;">
                                 Link to external URLs or internal pages you create in the Pages tab
@@ -518,16 +548,16 @@ You can use HTML tags like:
                         </div>`;
                 case 'writing':
                     return `
-                        <div class="section" data-section="writing" draggable="true">
-                            <span class="section-drag-handle" title="Drag to reorder">⋮⋮</span>
+                        <div class="section" data-section="writing">
+                            ${orderControls}
                             <h2>Writing</h2>
                             <div id="writing-container"></div>
                             <button class="add-btn" onclick="addWriting()">+ Add Post</button>
                         </div>`;
                 case 'sounds':
                     return `
-                        <div class="section" data-section="sounds" draggable="true">
-                            <span class="section-drag-handle" title="Drag to reorder">⋮⋮</span>
+                        <div class="section" data-section="sounds">
+                            ${orderControls}
                             <h2>Sounds</h2>
                             <p style="color: #666; font-size: 0.85rem; margin-bottom: 1rem;">
                                 Add audio from Mixcloud, Bandcamp, Dropbox, or direct audio URLs
@@ -537,8 +567,8 @@ You can use HTML tags like:
                         </div>`;
                 case 'contact':
                     return `
-                        <div class="section" data-section="contact" draggable="true">
-                            <span class="section-drag-handle" title="Drag to reorder">⋮⋮</span>
+                        <div class="section" data-section="contact">
+                            ${orderControls}
                             <h2>Contact Links</h2>
                             <div id="contact-container"></div>
                             <button class="add-btn" onclick="addContact()">+ Add Link</button>
@@ -548,65 +578,33 @@ You can use HTML tags like:
             }
         }
 
-        // Section drag-and-drop
-        function setupSectionDrag() {
-            document.querySelectorAll('.section[data-section]').forEach(section => {
-                section.addEventListener('dragstart', handleSectionDragStart);
-                section.addEventListener('dragend', handleSectionDragEnd);
-                section.addEventListener('dragover', handleSectionDragOver);
-                section.addEventListener('dragleave', handleSectionDragLeave);
-                section.addEventListener('drop', handleSectionDrop);
-            });
-        }
-
-        function handleSectionDragStart(e) {
-            // Only allow dragging from the handle
-            if (!e.target.classList.contains('section-drag-handle') &&
-                !e.target.closest('.section-drag-handle')) {
-                // Check if we're dragging an item instead
-                if (e.target.closest('.item')) return;
-                e.preventDefault();
-                return;
-            }
-            draggedSection = this;
-            this.classList.add('dragging');
-            e.dataTransfer.effectAllowed = 'move';
-        }
-
-        function handleSectionDragEnd(e) {
-            this.classList.remove('dragging');
-            document.querySelectorAll('.section').forEach(s => s.classList.remove('drag-over'));
-            draggedSection = null;
-        }
-
-        function handleSectionDragOver(e) {
-            e.preventDefault();
-            if (draggedSection && draggedSection !== this) {
-                this.classList.add('drag-over');
-            }
-        }
-
-        function handleSectionDragLeave(e) {
-            this.classList.remove('drag-over');
-        }
-
-        function handleSectionDrop(e) {
-            e.preventDefault();
-            this.classList.remove('drag-over');
-
-            if (draggedSection && draggedSection !== this) {
-                const fromSection = draggedSection.dataset.section;
-                const toSection = this.dataset.section;
-                const fromIndex = sectionOrder.indexOf(fromSection);
-                const toIndex = sectionOrder.indexOf(toSection);
-
-                // Reorder
-                sectionOrder.splice(fromIndex, 1);
-                sectionOrder.splice(toIndex, 0, fromSection);
-
+        function moveSectionUp(section) {
+            const idx = sectionOrder.indexOf(section);
+            if (idx > 0) {
+                sectionOrder.splice(idx, 1);
+                sectionOrder.splice(idx - 1, 0, section);
                 renderSections();
             }
         }
+
+        function moveSectionDown(section) {
+            const idx = sectionOrder.indexOf(section);
+            if (idx < sectionOrder.length - 1) {
+                sectionOrder.splice(idx, 1);
+                sectionOrder.splice(idx + 1, 0, section);
+                renderSections();
+            }
+        }
+
+        function moveSectionTo(section, newPos) {
+            const pos = parseInt(newPos) - 1;
+            if (pos < 0 || pos >= sectionOrder.length) return;
+            const idx = sectionOrder.indexOf(section);
+            sectionOrder.splice(idx, 1);
+            sectionOrder.splice(pos, 0, section);
+            renderSections();
+        }
+
 
         // Projects
         function renderProjects() { renderProjectItems(); }
@@ -614,8 +612,13 @@ You can use HTML tags like:
             const container = document.getElementById('projects-container');
             if (!container) return;
             container.innerHTML = projects.map((p, i) => `
-                <div class="item" draggable="true" data-type="projects" data-index="${i}">
-                    <span class="drag-handle" title="Drag to reorder">⋮⋮</span>
+                <div class="item" data-type="projects" data-index="${i}">
+                    <div class="order-controls">
+                        <button class="order-btn" onclick="moveItemUp('projects', ${i})" title="Move up">▲</button>
+                        <input type="number" class="order-input" value="${i + 1}" min="1" max="${projects.length}"
+                               onchange="moveItemTo('projects', ${i}, this.value)">
+                        <button class="order-btn" onclick="moveItemDown('projects', ${i})" title="Move down">▼</button>
+                    </div>
                     <div class="item-header">
                         <span class="item-title">Project ${i + 1}</span>
                         <button class="remove-btn" onclick="removeProject(${i})">×</button>
@@ -627,7 +630,6 @@ You can use HTML tags like:
                     </div>
                 </div>
             `).join('');
-            setupItemDrag(container, 'projects');
         }
         function addProject() { projects.push({ title: '', desc: '', link: '' }); renderProjectItems(); }
         function removeProject(i) { projects.splice(i, 1); renderProjectItems(); }
@@ -638,8 +640,13 @@ You can use HTML tags like:
             const container = document.getElementById('writing-container');
             if (!container) return;
             container.innerHTML = writing.map((w, i) => `
-                <div class="item" draggable="true" data-type="writing" data-index="${i}">
-                    <span class="drag-handle" title="Drag to reorder">⋮⋮</span>
+                <div class="item" data-type="writing" data-index="${i}">
+                    <div class="order-controls">
+                        <button class="order-btn" onclick="moveItemUp('writing', ${i})" title="Move up">▲</button>
+                        <input type="number" class="order-input" value="${i + 1}" min="1" max="${writing.length}"
+                               onchange="moveItemTo('writing', ${i}, this.value)">
+                        <button class="order-btn" onclick="moveItemDown('writing', ${i})" title="Move down">▼</button>
+                    </div>
                     <div class="item-header">
                         <span class="item-title">Post ${i + 1}</span>
                         <button class="remove-btn" onclick="removeWriting(${i})">×</button>
@@ -651,7 +658,6 @@ You can use HTML tags like:
                     <input type="text" placeholder="Link URL or page slug" value="${esc(w.link)}" onchange="writing[${i}].link = this.value">
                 </div>
             `).join('');
-            setupItemDrag(container, 'writing');
         }
         function addWriting() { writing.push({ date: '', title: '', link: '' }); renderWritingItems(); }
         function removeWriting(i) { writing.splice(i, 1); renderWritingItems(); }
@@ -662,8 +668,13 @@ You can use HTML tags like:
             const container = document.getElementById('sounds-container');
             if (!container) return;
             container.innerHTML = sounds.map((s, i) => `
-                <div class="item" draggable="true" data-type="sounds" data-index="${i}">
-                    <span class="drag-handle" title="Drag to reorder">⋮⋮</span>
+                <div class="item" data-type="sounds" data-index="${i}">
+                    <div class="order-controls">
+                        <button class="order-btn" onclick="moveItemUp('sounds', ${i})" title="Move up">▲</button>
+                        <input type="number" class="order-input" value="${i + 1}" min="1" max="${sounds.length}"
+                               onchange="moveItemTo('sounds', ${i}, this.value)">
+                        <button class="order-btn" onclick="moveItemDown('sounds', ${i})" title="Move down">▼</button>
+                    </div>
                     <div class="item-header">
                         <span class="item-title">Sound ${i + 1}</span>
                         <button class="remove-btn" onclick="removeSound(${i})">×</button>
@@ -684,7 +695,6 @@ You can use HTML tags like:
                     <p id="sound-help-${i}" style="color: #999; font-size: 0.75rem; margin: 0;">${getSoundHelp(s.type)}</p>
                 </div>
             `).join('');
-            setupItemDrag(container, 'sounds');
         }
         function getSoundPlaceholder(type) {
             switch(type) {
@@ -718,8 +728,13 @@ You can use HTML tags like:
             const container = document.getElementById('contact-container');
             if (!container) return;
             container.innerHTML = contact.map((c, i) => `
-                <div class="item" draggable="true" data-type="contact" data-index="${i}">
-                    <span class="drag-handle" title="Drag to reorder">⋮⋮</span>
+                <div class="item" data-type="contact" data-index="${i}">
+                    <div class="order-controls">
+                        <button class="order-btn" onclick="moveItemUp('contact', ${i})" title="Move up">▲</button>
+                        <input type="number" class="order-input" value="${i + 1}" min="1" max="${contact.length}"
+                               onchange="moveItemTo('contact', ${i}, this.value)">
+                        <button class="order-btn" onclick="moveItemDown('contact', ${i})" title="Move down">▼</button>
+                    </div>
                     <div class="item-header">
                         <span class="item-title">Link ${i + 1}</span>
                         <button class="remove-btn" onclick="removeContact(${i})">×</button>
@@ -730,88 +745,53 @@ You can use HTML tags like:
                     </div>
                 </div>
             `).join('');
-            setupItemDrag(container, 'contact');
         }
         function addContact() { contact.push({ name: '', url: '' }); renderContactItems(); }
         function removeContact(i) { contact.splice(i, 1); renderContactItems(); }
 
-        // Item drag-and-drop within sections
-        function setupItemDrag(container, type) {
-            container.querySelectorAll('.item').forEach(item => {
-                item.addEventListener('dragstart', handleItemDragStart);
-                item.addEventListener('dragend', handleItemDragEnd);
-                item.addEventListener('dragover', handleItemDragOver);
-                item.addEventListener('dragleave', handleItemDragLeave);
-                item.addEventListener('drop', handleItemDrop);
-            });
-        }
-
-        function handleItemDragStart(e) {
-            // Only allow dragging from the handle
-            if (!e.target.classList.contains('drag-handle') &&
-                !e.target.closest('.drag-handle')) {
-                e.preventDefault();
-                return;
+        // Item reordering functions
+        function getItemArray(type) {
+            switch(type) {
+                case 'projects': return projects;
+                case 'writing': return writing;
+                case 'sounds': return sounds;
+                case 'contact': return contact;
             }
-            draggedItem = this;
-            draggedItemType = this.dataset.type;
-            this.classList.add('dragging');
-            e.dataTransfer.effectAllowed = 'move';
-            e.stopPropagation(); // Don't trigger section drag
+            return null;
         }
 
-        function handleItemDragEnd(e) {
-            this.classList.remove('dragging');
-            document.querySelectorAll('.item').forEach(item => item.classList.remove('drag-over'));
-            draggedItem = null;
-            draggedItemType = null;
-        }
-
-        function handleItemDragOver(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            if (draggedItem && draggedItem !== this && this.dataset.type === draggedItemType) {
-                this.classList.add('drag-over');
+        function reRenderItems(type) {
+            switch(type) {
+                case 'projects': renderProjectItems(); break;
+                case 'writing': renderWritingItems(); break;
+                case 'sounds': renderSoundItems(); break;
+                case 'contact': renderContactItems(); break;
             }
         }
 
-        function handleItemDragLeave(e) {
-            this.classList.remove('drag-over');
+        function moveItemUp(type, index) {
+            const arr = getItemArray(type);
+            if (!arr || index <= 0) return;
+            const [item] = arr.splice(index, 1);
+            arr.splice(index - 1, 0, item);
+            reRenderItems(type);
         }
 
-        function handleItemDrop(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            this.classList.remove('drag-over');
+        function moveItemDown(type, index) {
+            const arr = getItemArray(type);
+            if (!arr || index >= arr.length - 1) return;
+            const [item] = arr.splice(index, 1);
+            arr.splice(index + 1, 0, item);
+            reRenderItems(type);
+        }
 
-            if (draggedItem && draggedItem !== this && this.dataset.type === draggedItemType) {
-                const fromIndex = parseInt(draggedItem.dataset.index);
-                const toIndex = parseInt(this.dataset.index);
-                const type = this.dataset.type;
-
-                // Get the array
-                let arr;
-                switch(type) {
-                    case 'projects': arr = projects; break;
-                    case 'writing': arr = writing; break;
-                    case 'sounds': arr = sounds; break;
-                    case 'contact': arr = contact; break;
-                }
-
-                if (arr) {
-                    // Reorder
-                    const [removed] = arr.splice(fromIndex, 1);
-                    arr.splice(toIndex, 0, removed);
-
-                    // Re-render
-                    switch(type) {
-                        case 'projects': renderProjectItems(); break;
-                        case 'writing': renderWritingItems(); break;
-                        case 'sounds': renderSoundItems(); break;
-                        case 'contact': renderContactItems(); break;
-                    }
-                }
-            }
+        function moveItemTo(type, fromIndex, newPos) {
+            const arr = getItemArray(type);
+            const toIndex = parseInt(newPos) - 1;
+            if (!arr || toIndex < 0 || toIndex >= arr.length || fromIndex === toIndex) return;
+            const [item] = arr.splice(fromIndex, 1);
+            arr.splice(toIndex, 0, item);
+            reRenderItems(type);
         }
 
         // Pages
