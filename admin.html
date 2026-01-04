@@ -1109,11 +1109,34 @@ You can use HTML tags like:
 
             container.innerHTML = logArray.map(log => {
                 const time = new Date(log.timestamp).toLocaleString();
-                const actionColor = log.action === 'turn_on' ? '#2d5a3d' : '#c45d3a';
+                const action = log.action || '';
+
+                let actionColor = '#2d5a3d';
+                let actionLabel = 'ACTION';
+
+                if (action.startsWith('turn_on')) {
+                    actionColor = '#2d5a3d';
+                    actionLabel = action.includes('(color)') ? 'COLOR' : 'ON';
+                } else if (action.startsWith('turn_off')) {
+                    actionColor = '#c45d3a';
+                    actionLabel = 'OFF';
+                } else if (action.startsWith('set_percentage')) {
+                    actionColor = '#2d5a3d';
+                    const match = action.match(/\((\d+)%\)/);
+                    if (match) {
+                        const pct = parseInt(match[1]);
+                        if (pct <= 33) actionLabel = 'LOW';
+                        else if (pct <= 66) actionLabel = 'MED';
+                        else actionLabel = 'HIGH';
+                    } else {
+                        actionLabel = 'SPEED';
+                    }
+                }
+
                 return `
                     <div style="padding: 0.5rem; border-bottom: 1px solid #eee; font-size: 0.85rem;">
                         <span style="color: ${actionColor}; font-weight: 500;">
-                            ${log.action === 'turn_on' ? 'ON' : 'OFF'}
+                            ${actionLabel}
                         </span>
                         <span style="color: #333;">${log.deviceName || log.entity_id}</span>
                         <span style="color: #999; font-size: 0.75rem; float: right;">${time}</span>

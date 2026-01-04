@@ -601,8 +601,34 @@
 
         activityLog.innerHTML = logArray.map(log => {
             const timeAgo = getTimeAgo(log.timestamp);
-            const actionClass = log.action === 'turn_on' ? 'action-on' : 'action-off';
-            const actionText = log.action === 'turn_on' ? 'turned on' : 'turned off';
+            const action = log.action || '';
+
+            // Determine action display
+            let actionClass = 'action-on';
+            let actionText = 'toggled';
+
+            if (action.startsWith('turn_on')) {
+                actionClass = 'action-on';
+                if (action.includes('(color)')) {
+                    actionText = 'changed color on';
+                } else {
+                    actionText = 'turned on';
+                }
+            } else if (action.startsWith('turn_off')) {
+                actionClass = 'action-off';
+                actionText = 'turned off';
+            } else if (action.startsWith('set_percentage')) {
+                actionClass = 'action-on';
+                const match = action.match(/\((\d+)%\)/);
+                if (match) {
+                    const pct = parseInt(match[1]);
+                    if (pct <= 33) actionText = 'set to Low';
+                    else if (pct <= 66) actionText = 'set to Medium';
+                    else actionText = 'set to High';
+                } else {
+                    actionText = 'changed speed on';
+                }
+            }
 
             return `
                 <li>
