@@ -168,13 +168,19 @@
                 if (stroke && stroke.points) drawStroke(stroke.points, stroke.color, stroke.width);
             });
 
-            // Listen for canvas clear events (only respond to NEW clears)
-            db.ref('canvas_cleared/' + pageId).on('value', (snapshot) => {
-                const cleared = snapshot.val();
-                if (cleared && cleared > lastClearedTimestamp) {
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    lastClearedTimestamp = cleared;
-                }
+            // Listen for canvas clear events (only respond to NEW clears after page load)
+            const clearRef = db.ref('canvas_cleared/' + pageId);
+            // First, get current value to establish baseline
+            clearRef.once('value', (snapshot) => {
+                lastClearedTimestamp = snapshot.val() || 0;
+                // Now listen for future changes
+                clearRef.on('value', (snapshot) => {
+                    const cleared = snapshot.val();
+                    if (cleared && cleared > lastClearedTimestamp) {
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        lastClearedTimestamp = cleared;
+                    }
+                });
             });
 
             console.log('Firebase connected for page:', pageId);
