@@ -23,6 +23,9 @@
     let isEnabled = true;
     let devices = {};
     let db = null;
+    let lastLogTimestamp = 0;
+    let refreshDebounceTimer = null;
+    let isInitialLoad = true;
 
     // DOM Elements
     const devicesGrid = document.getElementById('devices-grid');
@@ -522,6 +525,7 @@
 
     /**
      * Listen for activity log updates from Firebase
+     * Also triggers device state refresh when new actions are logged
      */
     function listenForActivityLog() {
         db.ref('commandcenter/log')
@@ -530,6 +534,29 @@
             .on('value', (snapshot) => {
                 const logs = snapshot.val();
                 renderActivityLog(logs);
+
+                // Find the latest timestamp in the logs
+                let latestTimestamp = 0;
+                if (logs) {
+                    Object.values(logs).forEach(log => {
+                        if (log.timestamp > latestTimestamp) {
+                            latestTimestamp = log.timestamp;
+                        }
+                    });
+                }
+
+                // If a newer action appeared, refresh device states
+                // Skip on initial load
+                if (!isInitialLoad && latestTimestamp > lastLogTimestamp) {
+                    // Debounce to prevent rapid refreshes
+                    clearTimeout(refreshDebounceTimer);
+                    refreshDebounceTimer = setTimeout(() => {
+                        fetchDevices();
+                    }, 500);
+                }
+
+                lastLogTimestamp = latestTimestamp;
+                isInitialLoad = false;
             });
     }
 
