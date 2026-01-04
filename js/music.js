@@ -35,6 +35,7 @@
     let isPlaying = false;
     let currentStep = 0;
     let sequence = null;
+    let nextChordStep = 0; // Track where to place next chord
 
     // Grid state - always full size for compatibility
     let drumGrid = Array(6).fill(null).map(() => Array(STEPS).fill(0));
@@ -44,8 +45,14 @@
     let songBars = [];
     let allBars = {};
 
+    // Audio state - defer initialization for iOS Safari
+    let audioInitialized = false;
+
     // Synths
     let kick, snare, hihatClosed, hihatOpen, clap, perc, melodySynth;
+
+    // Master effects
+    let masterReverb, masterFilter, hihatFilter;
 
     // ==========================================================================
     // Firebase Setup
@@ -62,65 +69,86 @@
     // Audio Setup (Tone.js)
     // ==========================================================================
 
+    // Ensure audio is initialized (required for iOS Safari)
+    async function ensureAudio() {
+        if (!audioInitialized) {
+            await Tone.start();
+            initAudio();
+            audioInitialized = true;
+        }
+    }
+
     function initAudio() {
-        // Kick drum
+        // Master effects chain for warmth
+        masterReverb = new Tone.Reverb({
+            decay: 1.2,
+            wet: 0.15
+        }).toDestination();
+
+        masterFilter = new Tone.Filter({
+            frequency: 6000,
+            type: 'lowpass',
+            rolloff: -12
+        }).connect(masterReverb);
+
+        // Hi-hat filter (highpass to keep it crisp but not harsh)
+        hihatFilter = new Tone.Filter({
+            frequency: 7000,
+            type: 'highpass'
+        }).connect(masterFilter);
+
+        // Kick drum - warm and punchy
         kick = new Tone.MembraneSynth({
             pitchDecay: 0.05,
             octaves: 6,
             oscillator: { type: 'sine' },
-            envelope: { attack: 0.001, decay: 0.4, sustain: 0, release: 0.1 }
-        }).toDestination();
+            envelope: { attack: 0.001, decay: 0.5, sustain: 0, release: 0.1 }
+        }).connect(masterFilter);
+        kick.volume.value = -4;
 
-        // Snare
+        // Snare - pink noise with body, softer attack
         snare = new Tone.NoiseSynth({
+            noise: { type: 'pink' },
+            envelope: { attack: 0.005, decay: 0.15, sustain: 0, release: 0.08 }
+        }).connect(masterFilter);
+        snare.volume.value = -6;
+
+        // Hi-hat closed - soft noise instead of harsh metallic
+        hihatClosed = new Tone.NoiseSynth({
             noise: { type: 'white' },
-            envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.1 }
-        }).toDestination();
+            envelope: { attack: 0.001, decay: 0.06, sustain: 0, release: 0.02 }
+        }).connect(hihatFilter);
+        hihatClosed.volume.value = -14;
 
-        // Hi-hat closed
-        hihatClosed = new Tone.MetalSynth({
-            frequency: 200,
-            envelope: { attack: 0.001, decay: 0.05, release: 0.01 },
-            harmonicity: 5.1,
-            modulationIndex: 32,
-            resonance: 4000,
-            octaves: 1.5
-        }).toDestination();
-        hihatClosed.volume.value = -10;
+        // Hi-hat open - longer decay
+        hihatOpen = new Tone.NoiseSynth({
+            noise: { type: 'white' },
+            envelope: { attack: 0.001, decay: 0.25, sustain: 0, release: 0.1 }
+        }).connect(hihatFilter);
+        hihatOpen.volume.value = -14;
 
-        // Hi-hat open
-        hihatOpen = new Tone.MetalSynth({
-            frequency: 200,
-            envelope: { attack: 0.001, decay: 0.3, release: 0.1 },
-            harmonicity: 5.1,
-            modulationIndex: 32,
-            resonance: 4000,
-            octaves: 1.5
-        }).toDestination();
-        hihatOpen.volume.value = -10;
-
-        // Clap
+        // Clap - softer with gentle attack
         clap = new Tone.NoiseSynth({
             noise: { type: 'pink' },
-            envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
-        }).toDestination();
-        clap.volume.value = -5;
+            envelope: { attack: 0.008, decay: 0.12, sustain: 0, release: 0.08 }
+        }).connect(masterFilter);
+        clap.volume.value = -8;
 
-        // Percussion
+        // Percussion - soft woodblock-like
         perc = new Tone.MembraneSynth({
-            pitchDecay: 0.01,
-            octaves: 4,
+            pitchDecay: 0.02,
+            octaves: 3,
             oscillator: { type: 'sine' },
-            envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.05 }
-        }).toDestination();
-        perc.volume.value = -3;
+            envelope: { attack: 0.001, decay: 0.15, sustain: 0, release: 0.05 }
+        }).connect(masterFilter);
+        perc.volume.value = -6;
 
-        // Melody synth
+        // Melody synth - warm sine/triangle with gentle envelope
         melodySynth = new Tone.PolySynth(Tone.Synth, {
-            oscillator: { type: 'triangle' },
-            envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 0.4 }
-        }).toDestination();
-        melodySynth.volume.value = -6;
+            oscillator: { type: 'sine' },
+            envelope: { attack: 0.05, decay: 0.2, sustain: 0.4, release: 0.6 }
+        }).connect(masterReverb);
+        melodySynth.volume.value = -8;
     }
 
     function triggerDrum(index) {
@@ -181,11 +209,14 @@
         });
     }
 
-    function handleCellClick(e) {
+    async function handleCellClick(e) {
         const cell = e.target;
         const row = parseInt(cell.dataset.row);
         const col = parseInt(cell.dataset.col);
         const isDrum = cell.classList.contains('drum');
+
+        // Ensure audio is ready (iOS Safari requires user gesture)
+        await ensureAudio();
 
         if (isDrum) {
             drumGrid[row][col] = drumGrid[row][col] ? 0 : 1;
@@ -201,6 +232,7 @@
     function clearGrid() {
         drumGrid = Array(6).fill(null).map(() => Array(STEPS).fill(0));
         melodyGrid = Array(8).fill(null).map(() => Array(STEPS).fill(0));
+        nextChordStep = 0;
         buildGrid();
     }
 
@@ -209,7 +241,7 @@
     // ==========================================================================
 
     async function startPlayback() {
-        await Tone.start();
+        await ensureAudio();
         Tone.Transport.bpm.value = bpm;
 
         if (sequence) {
@@ -480,7 +512,7 @@
     async function playSong() {
         if (songBars.length === 0) return;
 
-        await Tone.start();
+        await ensureAudio();
 
         let currentBarIndex = 0;
         const playNextBar = () => {
@@ -678,8 +710,50 @@
     // Initialize
     // ==========================================================================
 
+    // Chord definitions for simple mode (pentatonic: A4, G4, E4, D4, C4 - rows 0-4)
+    const CHORDS = {
+        'C':  [4, 2, 1],     // C, E, G (rows for C4, E4, G4)
+        'Am': [0, 4, 2],     // A, C, E
+        'G':  [1, 3],        // G, D (partial - no B in pentatonic)
+        'Dm': [3, 0],        // D, A (partial)
+        'Em': [2, 1, 4]      // E, G, C (relative minor feel)
+    };
+
+    function addChord(chordName) {
+        const notes = CHORDS[chordName];
+        if (!notes) return;
+
+        // Find next available step (or wrap around)
+        const step = nextChordStep % STEPS;
+
+        // Clear any existing notes in this column
+        for (let row = 0; row < 5; row++) {
+            melodyGrid[row][step] = 0;
+        }
+
+        // Add chord notes
+        notes.forEach(row => {
+            if (row < 5) { // Only for simple mode rows
+                melodyGrid[row][step] = 1;
+            }
+        });
+
+        nextChordStep++;
+        buildGrid();
+
+        // Play the chord preview
+        ensureAudio().then(() => {
+            const melody = currentMode === 'simple' ? SIMPLE_MELODY : ADVANCED_MELODY;
+            notes.forEach(row => {
+                if (melody[row]) {
+                    triggerMelody(melody[row]);
+                }
+            });
+        });
+    }
+
     function init() {
-        initAudio();
+        // Audio is initialized lazily on first interaction (for iOS Safari)
         buildGrid();
         loadBars();
         loadSongs();
@@ -733,6 +807,11 @@
         });
         document.getElementById('creator-name').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') handleSave();
+        });
+
+        // Chord helper buttons
+        document.querySelectorAll('.chord-btn').forEach(btn => {
+            btn.addEventListener('click', () => addChord(btn.dataset.chord));
         });
     }
 

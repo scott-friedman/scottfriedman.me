@@ -146,6 +146,43 @@
     margin-bottom: 0.25rem;
 }
 
+/* Chord Helper Buttons */
+.chord-helpers {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.helper-label {
+    font-size: 0.75rem;
+    color: var(--gray);
+}
+
+.chord-btn {
+    padding: 0.35rem 0.65rem;
+    border: 1px solid #ddd;
+    background: var(--white);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--gray);
+    transition: all 0.15s ease;
+}
+
+.chord-btn:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+    transform: translateY(-1px);
+}
+
+.chord-btn:active {
+    transform: translateY(0);
+}
+
 .tracks {
     display: flex;
     flex-direction: column;
