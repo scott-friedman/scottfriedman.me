@@ -60,13 +60,6 @@
 
         /* Admin panel */
         #admin-panel { display: none; }
-        .section {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 12px;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        }
         label {
             display: block;
             font-weight: 500;
@@ -98,10 +91,14 @@
         .item {
             background: #f9f9f9;
             padding: 1rem;
+            padding-left: 2.5rem;
             border-radius: 8px;
             margin-bottom: 0.75rem;
             position: relative;
+            transition: all 0.15s ease;
         }
+        .item.dragging { opacity: 0.5; background: #e8e8e8; }
+        .item.drag-over { border-top: 3px solid #2d5a3d; margin-top: -3px; }
         .item input, .item textarea, .item select { margin-bottom: 0.5rem; }
         .item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
         .item-title { font-weight: 500; font-size: 0.9rem; }
@@ -114,6 +111,46 @@
             padding: 0.25rem;
         }
         .remove-btn:hover { color: #a33d1a; }
+
+        /* Drag handle */
+        .drag-handle {
+            position: absolute;
+            left: 0.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: grab;
+            color: #bbb;
+            font-size: 1.2rem;
+            user-select: none;
+            padding: 0.5rem;
+        }
+        .drag-handle:hover { color: #888; }
+        .drag-handle:active { cursor: grabbing; }
+
+        /* Section reordering */
+        .section {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            position: relative;
+            transition: all 0.15s ease;
+        }
+        .section.dragging { opacity: 0.5; }
+        .section.drag-over { border-top: 3px solid #2d5a3d; margin-top: -3px; }
+        .section-drag-handle {
+            position: absolute;
+            right: 1rem;
+            top: 1rem;
+            cursor: grab;
+            color: #ccc;
+            font-size: 1rem;
+            user-select: none;
+            padding: 0.25rem;
+        }
+        .section-drag-handle:hover { color: #888; }
+        .section-drag-handle:active { cursor: grabbing; }
 
         .add-btn {
             background: #f0f0f0;
@@ -262,47 +299,11 @@
 
         <!-- Home Page Tab -->
         <div id="tab-home" class="tab-content active">
-            <!-- About Section -->
-            <div class="section">
-                <h2>About</h2>
-                <label>Paragraph 1</label>
-                <textarea id="about-p1" placeholder="First paragraph..."></textarea>
-                <label>Paragraph 2</label>
-                <textarea id="about-p2" placeholder="Second paragraph..."></textarea>
-            </div>
-
-            <!-- Projects Section -->
-            <div class="section">
-                <h2>Projects</h2>
-                <p style="color: #666; font-size: 0.85rem; margin-bottom: 1rem;">
-                    Link to external URLs or internal pages you create in the Pages tab
-                </p>
-                <div id="projects-container"></div>
-                <button class="add-btn" onclick="addProject()">+ Add Project</button>
-            </div>
-
-            <!-- Writing Section -->
-            <div class="section">
-                <h2>Writing</h2>
-                <div id="writing-container"></div>
-                <button class="add-btn" onclick="addWriting()">+ Add Post</button>
-            </div>
-
-            <!-- Sounds Section -->
-            <div class="section">
-                <h2>Sounds</h2>
-                <p style="color: #666; font-size: 0.85rem; margin-bottom: 1rem;">
-                    Add audio from Mixcloud, Bandcamp, Dropbox, or direct audio URLs
-                </p>
-                <div id="sounds-container"></div>
-                <button class="add-btn" onclick="addSound()">+ Add Sound</button>
-            </div>
-
-            <!-- Contact Section -->
-            <div class="section">
-                <h2>Contact Links</h2>
-                <div id="contact-container"></div>
-                <button class="add-btn" onclick="addContact()">+ Add Link</button>
+            <p style="color: #666; font-size: 0.85rem; margin-bottom: 1rem;">
+                Drag sections by the handle to reorder. Drag items within sections to reorder.
+            </p>
+            <div id="sections-container">
+                <!-- Sections will be rendered dynamically based on sectionOrder -->
             </div>
         </div>
 
@@ -437,14 +438,22 @@ You can use HTML tags like:
 
         let projects = [], writing = [], sounds = [], contact = [], pages = [];
         let editingPageSlug = null;
+        let sectionOrder = ['about', 'projects', 'writing', 'sounds', 'contact'];
+
+        // Drag state
+        let draggedItem = null;
+        let draggedItemType = null;
+        let draggedSection = null;
 
         function loadCurrentContent() {
             db.ref('content').once('value').then((snapshot) => {
                 const data = snapshot.val() || DEFAULTS;
 
-                const aboutParas = (data.about?.paragraphs) || DEFAULTS.about.paragraphs;
-                document.getElementById('about-p1').value = aboutParas[0] || '';
-                document.getElementById('about-p2').value = aboutParas[1] || '';
+                // Load section order
+                sectionOrder = data.sectionOrder || ['about', 'projects', 'writing', 'sounds', 'contact'];
+
+                // Store about paragraphs
+                window.aboutParas = (data.about?.paragraphs) || DEFAULTS.about.paragraphs;
 
                 projects = data.projects?.length ? data.projects : DEFAULTS.projects;
                 writing = data.writing?.length ? data.writing : DEFAULTS.writing;
@@ -458,28 +467,155 @@ You can use HTML tags like:
                 }
                 contact = data.contact?.length ? data.contact : DEFAULTS.contact;
 
-                renderProjects();
-                renderWriting();
-                renderSounds();
-                renderContact();
+                renderSections();
             }).catch(() => {
-                document.getElementById('about-p1').value = DEFAULTS.about.paragraphs[0];
-                document.getElementById('about-p2').value = DEFAULTS.about.paragraphs[1];
+                window.aboutParas = DEFAULTS.about.paragraphs;
                 projects = DEFAULTS.projects;
                 writing = DEFAULTS.writing;
                 sounds = DEFAULTS.sounds;
                 contact = DEFAULTS.contact;
-                renderProjects();
-                renderWriting();
-                renderSounds();
-                renderContact();
+                renderSections();
             });
         }
 
+        // Render all sections in order
+        function renderSections() {
+            const container = document.getElementById('sections-container');
+            container.innerHTML = sectionOrder.map(section => getSectionHTML(section)).join('');
+
+            // Setup drag handlers for sections
+            setupSectionDrag();
+
+            // Render items within each section
+            if (document.getElementById('projects-container')) renderProjectItems();
+            if (document.getElementById('writing-container')) renderWritingItems();
+            if (document.getElementById('sounds-container')) renderSoundItems();
+            if (document.getElementById('contact-container')) renderContactItems();
+        }
+
+        function getSectionHTML(section) {
+            switch(section) {
+                case 'about':
+                    return `
+                        <div class="section" data-section="about" draggable="true">
+                            <span class="section-drag-handle" title="Drag to reorder">⋮⋮</span>
+                            <h2>About</h2>
+                            <label>Paragraph 1</label>
+                            <textarea id="about-p1" placeholder="First paragraph...">${esc(window.aboutParas?.[0] || '')}</textarea>
+                            <label>Paragraph 2</label>
+                            <textarea id="about-p2" placeholder="Second paragraph...">${esc(window.aboutParas?.[1] || '')}</textarea>
+                        </div>`;
+                case 'projects':
+                    return `
+                        <div class="section" data-section="projects" draggable="true">
+                            <span class="section-drag-handle" title="Drag to reorder">⋮⋮</span>
+                            <h2>Projects</h2>
+                            <p style="color: #666; font-size: 0.85rem; margin-bottom: 1rem;">
+                                Link to external URLs or internal pages you create in the Pages tab
+                            </p>
+                            <div id="projects-container"></div>
+                            <button class="add-btn" onclick="addProject()">+ Add Project</button>
+                        </div>`;
+                case 'writing':
+                    return `
+                        <div class="section" data-section="writing" draggable="true">
+                            <span class="section-drag-handle" title="Drag to reorder">⋮⋮</span>
+                            <h2>Writing</h2>
+                            <div id="writing-container"></div>
+                            <button class="add-btn" onclick="addWriting()">+ Add Post</button>
+                        </div>`;
+                case 'sounds':
+                    return `
+                        <div class="section" data-section="sounds" draggable="true">
+                            <span class="section-drag-handle" title="Drag to reorder">⋮⋮</span>
+                            <h2>Sounds</h2>
+                            <p style="color: #666; font-size: 0.85rem; margin-bottom: 1rem;">
+                                Add audio from Mixcloud, Bandcamp, Dropbox, or direct audio URLs
+                            </p>
+                            <div id="sounds-container"></div>
+                            <button class="add-btn" onclick="addSound()">+ Add Sound</button>
+                        </div>`;
+                case 'contact':
+                    return `
+                        <div class="section" data-section="contact" draggable="true">
+                            <span class="section-drag-handle" title="Drag to reorder">⋮⋮</span>
+                            <h2>Contact Links</h2>
+                            <div id="contact-container"></div>
+                            <button class="add-btn" onclick="addContact()">+ Add Link</button>
+                        </div>`;
+                default:
+                    return '';
+            }
+        }
+
+        // Section drag-and-drop
+        function setupSectionDrag() {
+            document.querySelectorAll('.section[data-section]').forEach(section => {
+                section.addEventListener('dragstart', handleSectionDragStart);
+                section.addEventListener('dragend', handleSectionDragEnd);
+                section.addEventListener('dragover', handleSectionDragOver);
+                section.addEventListener('dragleave', handleSectionDragLeave);
+                section.addEventListener('drop', handleSectionDrop);
+            });
+        }
+
+        function handleSectionDragStart(e) {
+            // Only allow dragging from the handle
+            if (!e.target.classList.contains('section-drag-handle') &&
+                !e.target.closest('.section-drag-handle')) {
+                // Check if we're dragging an item instead
+                if (e.target.closest('.item')) return;
+                e.preventDefault();
+                return;
+            }
+            draggedSection = this;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleSectionDragEnd(e) {
+            this.classList.remove('dragging');
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('drag-over'));
+            draggedSection = null;
+        }
+
+        function handleSectionDragOver(e) {
+            e.preventDefault();
+            if (draggedSection && draggedSection !== this) {
+                this.classList.add('drag-over');
+            }
+        }
+
+        function handleSectionDragLeave(e) {
+            this.classList.remove('drag-over');
+        }
+
+        function handleSectionDrop(e) {
+            e.preventDefault();
+            this.classList.remove('drag-over');
+
+            if (draggedSection && draggedSection !== this) {
+                const fromSection = draggedSection.dataset.section;
+                const toSection = this.dataset.section;
+                const fromIndex = sectionOrder.indexOf(fromSection);
+                const toIndex = sectionOrder.indexOf(toSection);
+
+                // Reorder
+                sectionOrder.splice(fromIndex, 1);
+                sectionOrder.splice(toIndex, 0, fromSection);
+
+                renderSections();
+            }
+        }
+
         // Projects
-        function renderProjects() {
-            document.getElementById('projects-container').innerHTML = projects.map((p, i) => `
-                <div class="item">
+        function renderProjects() { renderProjectItems(); }
+        function renderProjectItems() {
+            const container = document.getElementById('projects-container');
+            if (!container) return;
+            container.innerHTML = projects.map((p, i) => `
+                <div class="item" draggable="true" data-type="projects" data-index="${i}">
+                    <span class="drag-handle" title="Drag to reorder">⋮⋮</span>
                     <div class="item-header">
                         <span class="item-title">Project ${i + 1}</span>
                         <button class="remove-btn" onclick="removeProject(${i})">×</button>
@@ -491,14 +627,19 @@ You can use HTML tags like:
                     </div>
                 </div>
             `).join('');
+            setupItemDrag(container, 'projects');
         }
-        function addProject() { projects.push({ title: '', desc: '', link: '' }); renderProjects(); }
-        function removeProject(i) { projects.splice(i, 1); renderProjects(); }
+        function addProject() { projects.push({ title: '', desc: '', link: '' }); renderProjectItems(); }
+        function removeProject(i) { projects.splice(i, 1); renderProjectItems(); }
 
         // Writing
-        function renderWriting() {
-            document.getElementById('writing-container').innerHTML = writing.map((w, i) => `
-                <div class="item">
+        function renderWriting() { renderWritingItems(); }
+        function renderWritingItems() {
+            const container = document.getElementById('writing-container');
+            if (!container) return;
+            container.innerHTML = writing.map((w, i) => `
+                <div class="item" draggable="true" data-type="writing" data-index="${i}">
+                    <span class="drag-handle" title="Drag to reorder">⋮⋮</span>
                     <div class="item-header">
                         <span class="item-title">Post ${i + 1}</span>
                         <button class="remove-btn" onclick="removeWriting(${i})">×</button>
@@ -510,14 +651,19 @@ You can use HTML tags like:
                     <input type="text" placeholder="Link URL or page slug" value="${esc(w.link)}" onchange="writing[${i}].link = this.value">
                 </div>
             `).join('');
+            setupItemDrag(container, 'writing');
         }
-        function addWriting() { writing.push({ date: '', title: '', link: '' }); renderWriting(); }
-        function removeWriting(i) { writing.splice(i, 1); renderWriting(); }
+        function addWriting() { writing.push({ date: '', title: '', link: '' }); renderWritingItems(); }
+        function removeWriting(i) { writing.splice(i, 1); renderWritingItems(); }
 
         // Sounds
-        function renderSounds() {
-            document.getElementById('sounds-container').innerHTML = sounds.map((s, i) => `
-                <div class="item">
+        function renderSounds() { renderSoundItems(); }
+        function renderSoundItems() {
+            const container = document.getElementById('sounds-container');
+            if (!container) return;
+            container.innerHTML = sounds.map((s, i) => `
+                <div class="item" draggable="true" data-type="sounds" data-index="${i}">
+                    <span class="drag-handle" title="Drag to reorder">⋮⋮</span>
                     <div class="item-header">
                         <span class="item-title">Sound ${i + 1}</span>
                         <button class="remove-btn" onclick="removeSound(${i})">×</button>
@@ -538,6 +684,7 @@ You can use HTML tags like:
                     <p id="sound-help-${i}" style="color: #999; font-size: 0.75rem; margin: 0;">${getSoundHelp(s.type)}</p>
                 </div>
             `).join('');
+            setupItemDrag(container, 'sounds');
         }
         function getSoundPlaceholder(type) {
             switch(type) {
@@ -562,13 +709,17 @@ You can use HTML tags like:
             document.getElementById(`sound-url-${i}`).placeholder = getSoundPlaceholder(type);
             document.getElementById(`sound-help-${i}`).textContent = getSoundHelp(type);
         }
-        function addSound() { sounds.push({ title: '', type: 'mixcloud', url: '', artist: '' }); renderSounds(); }
-        function removeSound(i) { sounds.splice(i, 1); renderSounds(); }
+        function addSound() { sounds.push({ title: '', type: 'mixcloud', url: '', artist: '' }); renderSoundItems(); }
+        function removeSound(i) { sounds.splice(i, 1); renderSoundItems(); }
 
         // Contact
-        function renderContact() {
-            document.getElementById('contact-container').innerHTML = contact.map((c, i) => `
-                <div class="item">
+        function renderContact() { renderContactItems(); }
+        function renderContactItems() {
+            const container = document.getElementById('contact-container');
+            if (!container) return;
+            container.innerHTML = contact.map((c, i) => `
+                <div class="item" draggable="true" data-type="contact" data-index="${i}">
+                    <span class="drag-handle" title="Drag to reorder">⋮⋮</span>
                     <div class="item-header">
                         <span class="item-title">Link ${i + 1}</span>
                         <button class="remove-btn" onclick="removeContact(${i})">×</button>
@@ -579,9 +730,89 @@ You can use HTML tags like:
                     </div>
                 </div>
             `).join('');
+            setupItemDrag(container, 'contact');
         }
-        function addContact() { contact.push({ name: '', url: '' }); renderContact(); }
-        function removeContact(i) { contact.splice(i, 1); renderContact(); }
+        function addContact() { contact.push({ name: '', url: '' }); renderContactItems(); }
+        function removeContact(i) { contact.splice(i, 1); renderContactItems(); }
+
+        // Item drag-and-drop within sections
+        function setupItemDrag(container, type) {
+            container.querySelectorAll('.item').forEach(item => {
+                item.addEventListener('dragstart', handleItemDragStart);
+                item.addEventListener('dragend', handleItemDragEnd);
+                item.addEventListener('dragover', handleItemDragOver);
+                item.addEventListener('dragleave', handleItemDragLeave);
+                item.addEventListener('drop', handleItemDrop);
+            });
+        }
+
+        function handleItemDragStart(e) {
+            // Only allow dragging from the handle
+            if (!e.target.classList.contains('drag-handle') &&
+                !e.target.closest('.drag-handle')) {
+                e.preventDefault();
+                return;
+            }
+            draggedItem = this;
+            draggedItemType = this.dataset.type;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.stopPropagation(); // Don't trigger section drag
+        }
+
+        function handleItemDragEnd(e) {
+            this.classList.remove('dragging');
+            document.querySelectorAll('.item').forEach(item => item.classList.remove('drag-over'));
+            draggedItem = null;
+            draggedItemType = null;
+        }
+
+        function handleItemDragOver(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (draggedItem && draggedItem !== this && this.dataset.type === draggedItemType) {
+                this.classList.add('drag-over');
+            }
+        }
+
+        function handleItemDragLeave(e) {
+            this.classList.remove('drag-over');
+        }
+
+        function handleItemDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.classList.remove('drag-over');
+
+            if (draggedItem && draggedItem !== this && this.dataset.type === draggedItemType) {
+                const fromIndex = parseInt(draggedItem.dataset.index);
+                const toIndex = parseInt(this.dataset.index);
+                const type = this.dataset.type;
+
+                // Get the array
+                let arr;
+                switch(type) {
+                    case 'projects': arr = projects; break;
+                    case 'writing': arr = writing; break;
+                    case 'sounds': arr = sounds; break;
+                    case 'contact': arr = contact; break;
+                }
+
+                if (arr) {
+                    // Reorder
+                    const [removed] = arr.splice(fromIndex, 1);
+                    arr.splice(toIndex, 0, removed);
+
+                    // Re-render
+                    switch(type) {
+                        case 'projects': renderProjectItems(); break;
+                        case 'writing': renderWritingItems(); break;
+                        case 'sounds': renderSoundItems(); break;
+                        case 'contact': renderContactItems(); break;
+                    }
+                }
+            }
+        }
 
         // Pages
         function loadPages() {
@@ -673,9 +904,10 @@ You can use HTML tags like:
             status.className = 'status';
 
             const content = {
+                sectionOrder: sectionOrder,
                 about: { paragraphs: [
-                    document.getElementById('about-p1').value,
-                    document.getElementById('about-p2').value
+                    document.getElementById('about-p1')?.value || '',
+                    document.getElementById('about-p2')?.value || ''
                 ].filter(p => p.trim()) },
                 projects: projects.filter(p => p.title.trim()),
                 writing: writing.filter(w => w.title.trim()),

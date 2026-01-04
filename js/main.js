@@ -508,6 +508,72 @@
         return `<div class="sound-embed">${header}${embedHtml}</div>`;
     }
 
+    // Reorder sections in the DOM based on saved order
+    function reorderSections(sectionOrder) {
+        const main = document.querySelector('main');
+        if (!main) return;
+
+        // Find the first section and its preceding hr
+        const sections = {};
+        const hrElements = {};
+
+        sectionOrder.forEach(id => {
+            const section = document.getElementById(id);
+            if (section) {
+                sections[id] = section;
+                // Find the hr before this section
+                const prevSibling = section.previousElementSibling;
+                if (prevSibling && prevSibling.tagName === 'HR') {
+                    hrElements[id] = prevSibling;
+                }
+            }
+        });
+
+        // Find the insertion point (after nav's hr)
+        const nav = main.querySelector('nav');
+        if (!nav) return;
+        let insertBefore = nav.nextElementSibling;
+        while (insertBefore && insertBefore.tagName !== 'HR') {
+            insertBefore = insertBefore.nextElementSibling;
+        }
+        if (insertBefore) insertBefore = insertBefore.nextElementSibling;
+
+        // Reorder: move each section (with its preceding hr) in order
+        sectionOrder.forEach(id => {
+            const section = sections[id];
+            const hr = hrElements[id];
+            if (section) {
+                // Find where to insert
+                const footer = main.querySelector('footer');
+                const lastHr = footer?.previousElementSibling;
+
+                if (hr && lastHr) {
+                    main.insertBefore(hr, lastHr);
+                    main.insertBefore(section, lastHr);
+                }
+            }
+        });
+
+        // Also update the nav order
+        const navEl = document.querySelector('nav');
+        if (navEl) {
+            const links = {};
+            navEl.querySelectorAll('a').forEach(a => {
+                const href = a.getAttribute('href');
+                if (href && href.startsWith('#')) {
+                    links[href.substring(1)] = a;
+                }
+            });
+
+            // Reorder nav links
+            sectionOrder.forEach(id => {
+                if (links[id]) {
+                    navEl.appendChild(links[id]);
+                }
+            });
+        }
+    }
+
     function loadContent() {
         if (!FIREBASE_CONFIG.apiKey) return;
 
@@ -515,6 +581,11 @@
         contentRef.once('value').then((snapshot) => {
             const content = snapshot.val();
             if (!content) return;
+
+            // Reorder sections if order is saved
+            if (content.sectionOrder && content.sectionOrder.length > 0) {
+                reorderSections(content.sectionOrder);
+            }
 
             // Load About section
             if (content.about) {
