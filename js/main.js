@@ -230,17 +230,32 @@
     function drawStroke(points, color, width) {
         if (points.length < 2) return;
         ctx.save();
-        ctx.strokeStyle = color || 'rgba(80, 60, 40, 0.5)';
         ctx.lineWidth = width || 4;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
-        ctx.beginPath();
-        // x: percentage to pixels, y: already in pixels
-        ctx.moveTo(points[0].x * canvas.width, points[0].y);
-        for (let i = 1; i < points.length; i++) {
-            ctx.lineTo(points[i].x * canvas.width, points[i].y);
+
+        // Check if points have per-point colors
+        const hasPerPointColor = points[0].c !== undefined;
+
+        if (hasPerPointColor) {
+            // Draw each segment with its own color
+            for (let i = 1; i < points.length; i++) {
+                ctx.beginPath();
+                ctx.strokeStyle = points[i].c || color || 'rgba(80, 60, 40, 0.5)';
+                ctx.moveTo(points[i-1].x * canvas.width, points[i-1].y);
+                ctx.lineTo(points[i].x * canvas.width, points[i].y);
+                ctx.stroke();
+            }
+        } else {
+            // Legacy: single color for entire stroke
+            ctx.strokeStyle = color || 'rgba(80, 60, 40, 0.5)';
+            ctx.beginPath();
+            ctx.moveTo(points[0].x * canvas.width, points[0].y);
+            for (let i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i].x * canvas.width, points[i].y);
+            }
+            ctx.stroke();
         }
-        ctx.stroke();
         ctx.restore();
     }
 
@@ -336,10 +351,9 @@
         isDrawing = false;
 
         if (strokesRef && currentStroke.length > 1) {
-            const avgColor = currentStroke[Math.floor(currentStroke.length / 2)].color;
+            // Save each point with its color for multi-color strokes
             strokesRef.push({
-                points: currentStroke.map(p => ({ x: p.x, y: p.y })),
-                color: avgColor,
+                points: currentStroke.map(p => ({ x: p.x, y: p.y, c: p.color })),
                 width: currentStroke[0].width,
                 timestamp: Date.now()
             });

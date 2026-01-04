@@ -264,10 +264,12 @@ body::before {
     border-color: var(--black);
 }
 
-.color-btn[data-color="#2d5a3d"] { background: #2d5a3d; }
-.color-btn[data-color="#c45d3a"] { background: #c45d3a; }
-.color-btn[data-color="#6b4423"] { background: #6b4423; }
-.color-btn[data-color="#5c5347"] { background: #5c5347; }
+.color-btn[data-color="#2e7d54"] { background: #2e7d54; }
+.color-btn[data-color="#428995"] { background: #428995; }
+.color-btn[data-color="#805f8a"] { background: #805f8a; }
+.color-btn[data-color="#b55d77"] { background: #b55d77; }
+.color-btn[data-color="#cc6644"] { background: #cc6644; }
+.color-btn[data-color="#c7a356"] { background: #c7a356; }
 
 .color-btn[data-color="auto"] {
     background: none;
