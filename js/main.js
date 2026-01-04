@@ -199,16 +199,18 @@
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.beginPath();
-        // Convert percentage coordinates to pixels
-        ctx.moveTo(points[0].x * canvas.width, points[0].y * canvas.height);
+        // x: percentage to pixels, y: already in pixels
+        ctx.moveTo(points[0].x * canvas.width, points[0].y);
         for (let i = 1; i < points.length; i++) {
-            ctx.lineTo(points[i].x * canvas.width, points[i].y * canvas.height);
+            ctx.lineTo(points[i].x * canvas.width, points[i].y);
         }
         ctx.stroke();
         ctx.restore();
     }
 
-    // Get position as percentage of canvas (for cross-device compatibility)
+    // Get position for storage
+    // x: percentage of width (for cross-device compatibility)
+    // y: absolute pixels from top (so drawings stay at correct scroll position)
     function getPos(e) {
         let clientX, clientY;
         if (e.touches) {
@@ -218,18 +220,17 @@
             clientX = e.clientX;
             clientY = e.clientY;
         }
-        // Return as percentage (0-1) for cross-device compatibility
         return {
             x: clientX / canvas.width,
-            y: (clientY + window.scrollY) / canvas.height
+            y: clientY + window.scrollY  // absolute pixels from top
         };
     }
 
-    // Convert percentage position to pixels for drawing
+    // Convert stored position to pixels for drawing
     function toPixels(pos) {
         return {
             x: pos.x * canvas.width,
-            y: pos.y * canvas.height
+            y: pos.y  // y is already in pixels
         };
     }
 
