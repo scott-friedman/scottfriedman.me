@@ -587,9 +587,9 @@
                 reorderSections(content.sectionOrder);
             }
 
-            // Load About section
+            // Load Intro section
             if (content.about) {
-                const aboutEl = document.getElementById('about-content');
+                const aboutEl = document.getElementById('intro-content');
                 if (aboutEl && content.about.paragraphs) {
                     aboutEl.innerHTML = content.about.paragraphs
                         .map(p => `<p>${p}</p>`)
