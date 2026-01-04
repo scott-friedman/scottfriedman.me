@@ -125,6 +125,15 @@
     background: #1e4a2d;
 }
 
+.control-btn.randomize {
+    background: linear-gradient(135deg, #6b4423, #c45d3a);
+    color: white;
+}
+
+.control-btn.randomize:hover {
+    background: linear-gradient(135deg, #5a3a1d, #a33d1a);
+}
+
 /* Sequencer Grid */
 .sequencer {
     display: flex;
@@ -183,6 +192,15 @@
     transform: translateY(0);
 }
 
+.chord-btn.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+}
+
+.chord-btn[draggable="true"] {
+    cursor: grab;
+}
+
 .tracks {
     display: flex;
     flex-direction: column;
@@ -238,6 +256,12 @@
 
 .cell.playing {
     box-shadow: 0 0 8px rgba(45, 90, 61, 0.6);
+}
+
+.cell.drop-target {
+    background: rgba(45, 90, 61, 0.2);
+    border-color: var(--accent);
+    transform: scale(1.05);
 }
 
 /* Beat markers (every 4 steps) */

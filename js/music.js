@@ -207,6 +207,50 @@
         document.querySelectorAll('.cell').forEach(cell => {
             cell.addEventListener('click', handleCellClick);
         });
+
+        // Add drop handlers for chord drag-and-drop (melody cells only)
+        document.querySelectorAll('.cell.melody').forEach(cell => {
+            cell.addEventListener('dragover', handleChordDragOver);
+            cell.addEventListener('dragleave', handleChordDragLeave);
+            cell.addEventListener('drop', handleChordDrop);
+        });
+    }
+
+    function handleChordDragOver(e) {
+        e.preventDefault();
+        if (draggedChord) {
+            // Highlight the entire column
+            const col = parseInt(e.target.dataset.col);
+            document.querySelectorAll('.cell.melody').forEach(cell => {
+                if (parseInt(cell.dataset.col) === col) {
+                    cell.classList.add('drop-target');
+                }
+            });
+        }
+    }
+
+    function handleChordDragLeave(e) {
+        // Only remove if leaving the column entirely
+        const col = parseInt(e.target.dataset.col);
+        const related = e.relatedTarget;
+        if (!related || !related.classList?.contains('cell') || parseInt(related.dataset?.col) !== col) {
+            document.querySelectorAll('.cell.melody').forEach(cell => {
+                if (parseInt(cell.dataset.col) === col) {
+                    cell.classList.remove('drop-target');
+                }
+            });
+        }
+    }
+
+    function handleChordDrop(e) {
+        e.preventDefault();
+        document.querySelectorAll('.cell').forEach(c => c.classList.remove('drop-target'));
+
+        if (draggedChord) {
+            const col = parseInt(e.target.dataset.col);
+            addChordAtStep(draggedChord, col);
+            draggedChord = null;
+        }
     }
 
     async function handleCellClick(e) {
@@ -719,12 +763,12 @@
         'Em': [2, 1, 4]      // E, G, C (relative minor feel)
     };
 
-    function addChord(chordName) {
+    // Currently dragged chord
+    let draggedChord = null;
+
+    function addChordAtStep(chordName, step) {
         const notes = CHORDS[chordName];
         if (!notes) return;
-
-        // Find next available step (or wrap around)
-        const step = nextChordStep % STEPS;
 
         // Clear any existing notes in this column
         for (let row = 0; row < 5; row++) {
@@ -738,7 +782,6 @@
             }
         });
 
-        nextChordStep++;
         buildGrid();
 
         // Play the chord preview
@@ -750,6 +793,71 @@
                 }
             });
         });
+    }
+
+    function addChord(chordName) {
+        // Find next available step (or wrap around)
+        const step = nextChordStep % STEPS;
+        addChordAtStep(chordName, step);
+        nextChordStep++;
+    }
+
+    // Randomize bar generation
+    function randomizeBar() {
+        // Clear existing
+        drumGrid = Array(6).fill(null).map(() => Array(STEPS).fill(0));
+        melodyGrid = Array(8).fill(null).map(() => Array(STEPS).fill(0));
+
+        const drums = currentMode === 'simple' ? SIMPLE_DRUMS : ADVANCED_DRUMS;
+        const melody = currentMode === 'simple' ? SIMPLE_MELODY : ADVANCED_MELODY;
+
+        // Generate drum pattern
+        // Kick on beats 1 and 3 (steps 0, 8) with some variation
+        for (let step = 0; step < STEPS; step++) {
+            if (step % 8 === 0) drumGrid[0][step] = 1; // Kick on 1 and 3
+            if (step % 8 === 4 && Math.random() > 0.3) drumGrid[0][step] = 1; // Sometimes on 2 and 4
+        }
+
+        // Snare on beats 2 and 4 (steps 4, 12)
+        drumGrid[1][4] = 1;
+        drumGrid[1][12] = 1;
+        // Add ghost notes sometimes
+        if (Math.random() > 0.5) drumGrid[1][10] = 1;
+
+        // Hi-hats - 8th notes or 16th notes
+        const hihatPattern = Math.random() > 0.5 ? 2 : 4; // Every 2 or 4 steps
+        for (let step = 0; step < STEPS; step++) {
+            if (step % hihatPattern === 0) drumGrid[2][step] = 1;
+        }
+
+        // Generate melody using chord progression
+        const chordProgression = ['C', 'Am', 'G', 'C'];
+        const chordSteps = [0, 4, 8, 12];
+
+        chordSteps.forEach((step, i) => {
+            const chord = chordProgression[i];
+            const notes = CHORDS[chord];
+            if (notes) {
+                // Add chord notes
+                notes.forEach(row => {
+                    if (row < melody.length) {
+                        melodyGrid[row][step] = 1;
+                    }
+                });
+
+                // Maybe add a passing note
+                if (Math.random() > 0.5 && step + 2 < STEPS) {
+                    const passingNote = Math.floor(Math.random() * melody.length);
+                    melodyGrid[passingNote][step + 2] = 1;
+                }
+            }
+        });
+
+        nextChordStep = 0;
+        buildGrid();
+
+        // Play a preview
+        ensureAudio().then(() => startPlayback());
     }
 
     function init() {
@@ -809,10 +917,27 @@
             if (e.key === 'Enter') handleSave();
         });
 
-        // Chord helper buttons
+        // Chord helper buttons - click to add, drag to place
         document.querySelectorAll('.chord-btn').forEach(btn => {
+            btn.setAttribute('draggable', 'true');
             btn.addEventListener('click', () => addChord(btn.dataset.chord));
+            btn.addEventListener('dragstart', (e) => {
+                draggedChord = btn.dataset.chord;
+                btn.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'copy';
+            });
+            btn.addEventListener('dragend', () => {
+                btn.classList.remove('dragging');
+                draggedChord = null;
+                document.querySelectorAll('.cell').forEach(c => c.classList.remove('drop-target'));
+            });
         });
+
+        // Randomize button
+        const randomizeBtn = document.getElementById('randomize-btn');
+        if (randomizeBtn) {
+            randomizeBtn.addEventListener('click', randomizeBar);
+        }
     }
 
     // Start when DOM is ready
