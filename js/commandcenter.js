@@ -568,13 +568,22 @@
             const timeSinceLocalAction = Date.now() - lastLocalActionTime;
             if (timeSinceLocalAction < LOCAL_ACTION_COOLDOWN) return;
 
-            // New action from another user - refresh device states
+            lastLogTimestamp = log.timestamp;
+
+            // Immediately update UI based on the log action (don't wait for HA)
+            if (log.entity_id && log.action) {
+                const action = log.action.split(' ')[0]; // Handle "turn_on (color)" etc.
+                if (action === 'turn_on' || action === 'turn_off') {
+                    const newState = action === 'turn_on' ? 'on' : 'off';
+                    updateDeviceUI(log.entity_id, newState);
+                }
+            }
+
+            // Also fetch from HA in background for eventual consistency (color, speed, etc.)
             clearTimeout(refreshDebounceTimer);
             refreshDebounceTimer = setTimeout(() => {
                 fetchDevices();
-            }, 300);
-
-            lastLogTimestamp = log.timestamp;
+            }, 2000);
         });
     }
 
