@@ -27,6 +27,24 @@
     }
 
     // ==========================================================================
+    // Responsive Drawing System
+    // ==========================================================================
+    // Reference width for consistent cross-device drawings
+    // Drawings are stored relative to this width and scaled on other devices
+    const REFERENCE_WIDTH = 1200;
+
+    // Get current scale and offset for responsive drawing
+    function getDrawingTransform() {
+        const viewportWidth = window.innerWidth;
+        // On screens narrower than reference, scale down proportionally
+        // On screens wider than reference, don't scale up, just center
+        const scale = Math.min(1, viewportWidth / REFERENCE_WIDTH);
+        // Offset to center the drawing area when viewport is wider than reference
+        const offsetX = Math.max(0, (viewportWidth - REFERENCE_WIDTH * scale) / 2);
+        return { scale, offsetX };
+    }
+
+    // ==========================================================================
     // Beautiful Color System
     // ==========================================================================
     const COLOR_PALETTES = {
@@ -150,6 +168,9 @@
     let fixedColor = null;
     let isEraser = false;
 
+    // Store all strokes locally for redrawing on resize
+    let allStrokes = [];
+
     // Mobile draw mode
     let isMobile = window.matchMedia('(pointer: coarse)').matches;
     let drawModeActive = !isMobile; // Desktop: always on, Mobile: off by default
@@ -166,16 +187,21 @@
     }
 
     function resizeCanvas() {
-        // Save existing drawing
-        const imageData = canvas.width > 0 ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null;
-
         // Size canvas to full document
         canvas.width = window.innerWidth;
         canvas.height = getDocumentHeight();
 
-        // Restore drawing
-        if (imageData) ctx.putImageData(imageData, 0, 0);
         setupContext();
+
+        // Redraw all strokes with new scaling
+        redrawAllStrokes();
+    }
+
+    function redrawAllStrokes() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        allStrokes.forEach(stroke => {
+            drawStroke(stroke.points, stroke.color, stroke.width);
+        });
     }
 
     function setupContext() {
@@ -201,7 +227,11 @@
             // Load existing strokes and listen for new ones
             strokesRef.on('child_added', (snapshot) => {
                 const stroke = snapshot.val();
-                if (stroke && stroke.points) drawStroke(stroke.points, stroke.color, stroke.width);
+                if (stroke && stroke.points) {
+                    // Store locally for redrawing on resize
+                    allStrokes.push(stroke);
+                    drawStroke(stroke.points, stroke.color, stroke.width);
+                }
             });
 
             // Listen for canvas clear events (only respond to NEW clears after page load)
@@ -213,6 +243,7 @@
                 clearRef.on('value', (snapshot) => {
                     const cleared = snapshot.val();
                     if (cleared && cleared > lastClearedTimestamp) {
+                        allStrokes = [];  // Clear local strokes
                         ctx.clearRect(0, 0, canvas.width, canvas.height);
                         lastClearedTimestamp = cleared;
                     }
@@ -229,8 +260,11 @@
 
     function drawStroke(points, color, width) {
         if (points.length < 2) return;
+
+        const { scale } = getDrawingTransform();
+
         ctx.save();
-        ctx.lineWidth = width || 4;
+        ctx.lineWidth = (width || 4) * scale;  // Scale line width
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
 
@@ -240,29 +274,34 @@
         if (hasPerPointColor) {
             // Draw each segment with its own color
             for (let i = 1; i < points.length; i++) {
+                const px1 = toPixels(points[i-1]);
+                const px2 = toPixels(points[i]);
                 ctx.beginPath();
                 ctx.strokeStyle = points[i].c || color || 'rgba(80, 60, 40, 0.5)';
-                ctx.moveTo(points[i-1].x * canvas.width, points[i-1].y);
-                ctx.lineTo(points[i].x * canvas.width, points[i].y);
+                ctx.moveTo(px1.x, px1.y);
+                ctx.lineTo(px2.x, px2.y);
                 ctx.stroke();
             }
         } else {
             // Legacy: single color for entire stroke
             ctx.strokeStyle = color || 'rgba(80, 60, 40, 0.5)';
             ctx.beginPath();
-            ctx.moveTo(points[0].x * canvas.width, points[0].y);
+            const firstPx = toPixels(points[0]);
+            ctx.moveTo(firstPx.x, firstPx.y);
             for (let i = 1; i < points.length; i++) {
-                ctx.lineTo(points[i].x * canvas.width, points[i].y);
+                const px = toPixels(points[i]);
+                ctx.lineTo(px.x, px.y);
             }
             ctx.stroke();
         }
         ctx.restore();
     }
 
-    // Get position for storage
-    // x: percentage of width (for cross-device compatibility)
-    // y: absolute pixels from top (so drawings stay at correct scroll position)
+    // Get position for storage (relative to REFERENCE_WIDTH)
+    // Coordinates are stored in a normalized space that scales consistently across devices
     function getPos(e) {
+        const { scale, offsetX } = getDrawingTransform();
+
         let clientX, clientY;
         if (e.touches) {
             clientX = e.touches[0].clientX;
@@ -271,17 +310,25 @@
             clientX = e.clientX;
             clientY = e.clientY;
         }
+
+        // Convert screen position to reference coordinates
+        // x: position relative to REFERENCE_WIDTH (0 to ~1, can exceed on wide screens)
+        // y: position in reference space (scaled from screen)
+        const refX = (clientX - offsetX) / scale;
+        const refY = (clientY + window.scrollY) / scale;
+
         return {
-            x: clientX / canvas.width,
-            y: clientY + window.scrollY  // absolute pixels from top
+            x: refX / REFERENCE_WIDTH,  // normalize to 0-1 range
+            y: refY                      // y in reference pixels
         };
     }
 
-    // Convert stored position to pixels for drawing
+    // Convert stored position to screen pixels for drawing
     function toPixels(pos) {
+        const { scale, offsetX } = getDrawingTransform();
         return {
-            x: pos.x * canvas.width,
-            y: pos.y  // y is already in pixels
+            x: pos.x * REFERENCE_WIDTH * scale + offsetX,
+            y: pos.y * scale
         };
     }
 
@@ -317,7 +364,8 @@
         if (!isDrawing) return;
         e.preventDefault();
 
-        const pos = getPos(e);  // percentage coordinates
+        const { scale } = getDrawingTransform();
+        const pos = getPos(e);  // reference coordinates
         const pixels = toPixels(pos);
 
         // Get current color (flowing or fixed)
@@ -328,14 +376,14 @@
         const widthVariation = autoColorMode && !isEraser ? (1 + Math.sin(Date.now() / 100) * 0.15) : 1;
 
         ctx.strokeStyle = color;
-        ctx.lineWidth = width * widthVariation;
+        ctx.lineWidth = width * widthVariation * scale;  // Scale line width
 
         ctx.beginPath();
         ctx.moveTo(lastX, lastY);
         ctx.lineTo(pixels.x, pixels.y);
         ctx.stroke();
 
-        currentStroke.push({ x: pos.x, y: pos.y, color, width });  // store as percentage
+        currentStroke.push({ x: pos.x, y: pos.y, color, width });  // store in reference space
         lastX = pixels.x;
         lastY = pixels.y;
 
@@ -362,6 +410,7 @@
     }
 
     function clearCanvas() {
+        allStrokes = [];  // Clear local strokes
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         if (db) {
             const pageId = getPageId();
