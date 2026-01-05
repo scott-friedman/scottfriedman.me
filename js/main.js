@@ -479,11 +479,6 @@
             if (tool === 'eraser') {
                 isEraser = !isEraser;
                 btn.classList.toggle('active', isEraser);
-            } else if (tool === 'clear') {
-                clearCanvas();
-                // Brief flash feedback
-                btn.style.background = 'var(--warm-light)';
-                setTimeout(() => btn.style.background = '', 200);
             }
         });
     });
@@ -495,13 +490,6 @@
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 
-    // Keyboard shortcut
-    document.addEventListener('keydown', (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'C') {
-            e.preventDefault();
-            clearCanvas();
-        }
-    });
 
     // ==========================================================================
     // Quirky Interactions

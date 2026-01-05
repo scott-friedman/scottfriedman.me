@@ -386,6 +386,21 @@
                 </div>
                 <button class="btn-small btn-delete" onclick="clearCCLog()" style="margin-top: 1rem;">Clear Log</button>
             </div>
+
+            <div class="section">
+                <h2>Clear Drawings</h2>
+                <p style="color: #666; font-size: 0.85rem; margin-bottom: 1rem;">
+                    Clear all visitor drawings from specific pages or all pages at once.
+                </p>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <button class="btn-small btn-delete" onclick="clearDrawings('index')">Clear Home</button>
+                    <button class="btn-small btn-delete" onclick="clearDrawings('stickynotes')">Clear Sticky Notes</button>
+                    <button class="btn-small btn-delete" onclick="clearDrawings('music')">Clear Music</button>
+                    <button class="btn-small btn-delete" onclick="clearDrawings('commandcenter')">Clear Command Center</button>
+                    <button class="btn-small btn-delete" onclick="clearAllDrawings()" style="background: #c45d3a; color: white;">Clear All Pages</button>
+                </div>
+                <span id="clear-drawings-status" class="status" style="display: block; margin-top: 0.5rem;"></span>
+            </div>
         </div>
     </div>
 
@@ -1155,6 +1170,52 @@ You can use HTML tags like:
         function clearCCLog() {
             if (!confirm('Clear all activity logs?')) return;
             db.ref('commandcenter/log').remove();
+        }
+
+        // ==================== Clear Drawings ====================
+
+        function clearDrawings(pageId) {
+            if (!confirm(`Clear all drawings from "${pageId}" page?`)) return;
+
+            const status = document.getElementById('clear-drawings-status');
+            status.textContent = 'Clearing...';
+            status.className = 'status';
+
+            // Set canvas_cleared timestamp to clear all strokes before this time
+            db.ref(`whiteboard/${pageId}/canvas_cleared`).set(Date.now())
+                .then(() => {
+                    status.textContent = `Cleared drawings from ${pageId}!`;
+                    status.className = 'status success';
+                    setTimeout(() => { status.textContent = ''; }, 3000);
+                })
+                .catch(err => {
+                    status.textContent = 'Error: ' + err.message;
+                    status.className = 'status error';
+                });
+        }
+
+        function clearAllDrawings() {
+            if (!confirm('Clear ALL drawings from ALL pages? This cannot be undone.')) return;
+
+            const status = document.getElementById('clear-drawings-status');
+            status.textContent = 'Clearing all...';
+            status.className = 'status';
+
+            const pages = ['index', 'stickynotes', 'music', 'commandcenter', 'page'];
+            const timestamp = Date.now();
+
+            Promise.all(pages.map(pageId =>
+                db.ref(`whiteboard/${pageId}/canvas_cleared`).set(timestamp)
+            ))
+                .then(() => {
+                    status.textContent = 'Cleared all drawings!';
+                    status.className = 'status success';
+                    setTimeout(() => { status.textContent = ''; }, 3000);
+                })
+                .catch(err => {
+                    status.textContent = 'Error: ' + err.message;
+                    status.className = 'status error';
+                });
         }
     </script>
 </body>
