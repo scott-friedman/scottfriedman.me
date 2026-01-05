@@ -106,7 +106,9 @@
     }
 
     function formatDate(dateStr, period) {
-        const date = new Date(dateStr);
+        // Parse date string as local time (not UTC) to avoid off-by-one day issue
+        const [year, month, day] = dateStr.split('-').map(Number);
+        const date = new Date(year, month - 1, day); // month is 0-indexed
         if (period === 'all' || period >= 365) {
             return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
         } else if (period >= 30) {
