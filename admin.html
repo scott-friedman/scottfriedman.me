@@ -1181,8 +1181,11 @@ You can use HTML tags like:
             status.textContent = 'Clearing...';
             status.className = 'status';
 
-            // Set canvas_cleared timestamp to clear all strokes before this time
-            db.ref(`whiteboard/${pageId}/canvas_cleared`).set(Date.now())
+            // Set canvas_cleared timestamp AND remove strokes
+            Promise.all([
+                db.ref(`canvas_cleared/${pageId}`).set(Date.now()),
+                db.ref(`strokes/${pageId}`).remove()
+            ])
                 .then(() => {
                     status.textContent = `Cleared drawings from ${pageId}!`;
                     status.className = 'status success';
@@ -1204,9 +1207,13 @@ You can use HTML tags like:
             const pages = ['index', 'stickynotes', 'music', 'commandcenter', 'page'];
             const timestamp = Date.now();
 
-            Promise.all(pages.map(pageId =>
-                db.ref(`whiteboard/${pageId}/canvas_cleared`).set(timestamp)
-            ))
+            // Clear both canvas_cleared timestamps AND strokes for all pages
+            const promises = pages.flatMap(pageId => [
+                db.ref(`canvas_cleared/${pageId}`).set(timestamp),
+                db.ref(`strokes/${pageId}`).remove()
+            ]);
+
+            Promise.all(promises)
                 .then(() => {
                     status.textContent = 'Cleared all drawings!';
                     status.className = 'status success';

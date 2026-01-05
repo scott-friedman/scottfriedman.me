@@ -297,8 +297,9 @@
         ctx.restore();
     }
 
-    // Get position for storage (relative to REFERENCE_WIDTH)
-    // Coordinates are stored in a normalized space that scales consistently across devices
+    // Get position for storage (relative to REFERENCE_WIDTH for x, absolute for y)
+    // x is normalized so drawings scale horizontally across devices
+    // y is absolute pixels from document top (scroll position stays consistent)
     function getPos(e) {
         const { scale, offsetX } = getDrawingTransform();
 
@@ -311,15 +312,12 @@
             clientY = e.clientY;
         }
 
-        // Convert screen position to reference coordinates
-        // x: position relative to REFERENCE_WIDTH (0 to ~1, can exceed on wide screens)
-        // y: position in reference space (scaled from screen)
+        // x: Convert screen position to reference coordinates, then normalize
         const refX = (clientX - offsetX) / scale;
-        const refY = (clientY + window.scrollY) / scale;
 
         return {
-            x: refX / REFERENCE_WIDTH,  // normalize to 0-1 range
-            y: refY                      // y in reference pixels
+            x: refX / REFERENCE_WIDTH,  // normalize to 0-1 range for horizontal scaling
+            y: clientY + window.scrollY  // absolute pixels from document top (no scaling)
         };
     }
 
@@ -327,8 +325,8 @@
     function toPixels(pos) {
         const { scale, offsetX } = getDrawingTransform();
         return {
-            x: pos.x * REFERENCE_WIDTH * scale + offsetX,
-            y: pos.y * scale
+            x: pos.x * REFERENCE_WIDTH * scale + offsetX,  // scale x horizontally
+            y: pos.y  // y stays absolute (no scaling)
         };
     }
 
