@@ -29,7 +29,6 @@
     const retryBtn = document.getElementById('retry-btn');
     const resultsSection = document.getElementById('results');
     const resultQuery = document.getElementById('result-query');
-    const cacheBadge = document.getElementById('cache-badge');
     const benefitsList = document.getElementById('benefits-list');
     const tipsList = document.getElementById('tips-list');
     const historyList = document.getElementById('history-list');
@@ -251,13 +250,6 @@
     function renderResults(data) {
         resultQuery.textContent = data.query;
 
-        // Show/hide cache badge
-        if (data.cached) {
-            cacheBadge.classList.remove('hidden');
-        } else {
-            cacheBadge.classList.add('hidden');
-        }
-
         // Store current benefits for "Tell me more" and "Really?"
         currentBenefits = [...data.benefits];
         selectedBenefitIndex = -1;
@@ -341,7 +333,7 @@
         const selectedBenefit = currentBenefits[index];
         const cacheKey = getExpansionKey(lastQuery, selectedBenefit);
         if (expansionCache[cacheKey]) {
-            showExpansion(expansionCache[cacheKey], true);
+            showExpansion(expansionCache[cacheKey]);
         } else {
             // Clear any previous expansion
             reallyExpansion.classList.add('hidden');
@@ -409,7 +401,7 @@
         // Check cache first
         const cacheKey = getExpansionKey(lastQuery, selectedBenefit);
         if (expansionCache[cacheKey]) {
-            showExpansion(expansionCache[cacheKey], true);
+            showExpansion(expansionCache[cacheKey]);
             return;
         }
 
@@ -447,7 +439,7 @@
             if (data.expansion) {
                 // Cache the expansion
                 expansionCache[cacheKey] = data.expansion;
-                showExpansion(data.expansion, false);
+                showExpansion(data.expansion);
 
                 // Update the list to show indicator on this benefit
                 renderBenefitsList();
@@ -471,9 +463,9 @@
     /**
      * Show expansion content
      */
-    function showExpansion(expansion, fromCache) {
+    function showExpansion(expansion) {
         reallyExpansion.innerHTML = `
-            <div class="expansion-label">EXPANDED:${fromCache ? ' <span class="from-cache">FROM CACHE</span>' : ''}</div>
+            <div class="expansion-label">EXPANDED:</div>
             <p>${escapeHtml(expansion)}</p>
         `;
         reallyExpansion.classList.remove('hidden');

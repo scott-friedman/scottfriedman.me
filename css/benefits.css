@@ -281,16 +281,6 @@ body::before {
     font-weight: 600;
 }
 
-.cache-badge {
-    font-size: 0.7rem;
-    padding: 0.2rem 0.5rem;
-    background: var(--terminal-border);
-    color: var(--amber-dim);
-    border-radius: 3px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
 .result-status {
     display: flex;
     gap: 0.5rem;
@@ -488,15 +478,6 @@ body::before {
     font-size: 0.75rem;
     letter-spacing: 0.1em;
     margin-bottom: 0.5rem;
-}
-
-.really-expansion .expansion-label .from-cache {
-    font-size: 0.65rem;
-    padding: 0.15rem 0.4rem;
-    background: var(--terminal-border);
-    border-radius: 3px;
-    margin-left: 0.5rem;
-    vertical-align: middle;
 }
 
 /* History section */
