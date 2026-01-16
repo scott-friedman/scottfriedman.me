@@ -234,13 +234,13 @@ async function handleExpandBenefit(request, env, corsHeaders) {
         return jsonResponse({ error: 'Invalid JSON' }, 400, corsHeaders);
     }
 
-    const { query, benefit } = body;
+    const { query, benefit, existingExpansions } = body;
 
     if (!query || !benefit) {
         return jsonResponse({ error: 'Query and benefit are required' }, 400, corsHeaders);
     }
 
-    const result = await callGeminiForExpansion(env, query, benefit);
+    const result = await callGeminiForExpansion(env, query, benefit, existingExpansions || []);
 
     if (result.error) {
         return jsonResponse({ error: result.error }, 500, corsHeaders);
@@ -434,8 +434,18 @@ Return ONLY the benefit text, nothing else.`;
 /**
  * Call Gemini to expand on a benefit claim
  */
-async function callGeminiForExpansion(env, query, benefit) {
+async function callGeminiForExpansion(env, query, benefit, existingExpansions = []) {
     const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+
+    let avoidRepetitionClause = '';
+    if (existingExpansions.length > 0) {
+        avoidRepetitionClause = `
+
+IMPORTANT: The following explanations have already been given for other benefits of "${query}". Do NOT repeat or heavily overlap with these points:
+${existingExpansions.map((exp, i) => `- "${exp}"`).join('\n')}
+
+Provide fresh reasoning, different evidence, or a new angle.`;
+    }
 
     const prompt = `Regarding "${query}", someone claims: "${benefit}"
 
@@ -446,7 +456,7 @@ Important: Adjust your explanation length based on how much the claim actually n
 - If moderately complex, provide 2-3 sentences
 - If the benefit is counter-intuitive, technical, or requires significant justification, provide up to 4 sentences
 
-Do NOT pad simple claims with unnecessary elaboration. Match the depth of explanation to the actual complexity of the claim.`;
+Do NOT pad simple claims with unnecessary elaboration. Match the depth of explanation to the actual complexity of the claim.${avoidRepetitionClause}`;
 
     try {
         const response = await fetch(`${GEMINI_URL}?key=${env.GEMINI_API_KEY}`, {

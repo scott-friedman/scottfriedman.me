@@ -411,13 +411,23 @@
         reallyBtn.textContent = 'LOADING...';
         reallyBtn.disabled = true;
 
+        // Gather existing expansions to avoid repetition
+        const existingExpansions = [];
+        for (const benefit of currentBenefits) {
+            const key = getExpansionKey(lastQuery, benefit);
+            if (expansionCache[key]) {
+                existingExpansions.push(expansionCache[key]);
+            }
+        }
+
         try {
             const response = await fetch(`${WORKER_URL}/api/expand-benefit`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     query: lastQuery,
-                    benefit: selectedBenefit
+                    benefit: selectedBenefit,
+                    existingExpansions: existingExpansions
                 })
             });
 
