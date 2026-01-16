@@ -688,17 +688,8 @@
         }
 
         // Store in our objects map
-        // Use saved rotation from Firebase, or generate a random initial rotation for variety
-        let savedRotation;
-        if (figurine.rotationY !== undefined && figurine.rotationY !== 0) {
-            // Use the saved non-zero rotation
-            savedRotation = figurine.rotationY;
-        } else {
-            // Generate a random initial rotation based on figurine ID for consistency
-            // This ensures figurines don't all face the same direction on load
-            const idHash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-            savedRotation = (idHash % 628) / 100; // 0 to ~2π radians
-        }
+        // Use saved rotation from Firebase, or default to facing forward (toward camera)
+        const savedRotation = (figurine.rotationY !== undefined) ? figurine.rotationY : 0;
         figurineObjects[id] = {
             id,
             model,
