@@ -681,20 +681,9 @@
                 }
             });
 
-            // Only auto-play if we have a proper idle animation
-            // Don't auto-play custom emotes as a fallback - they should only play on demand
-            if (!animations['idle'] && !animations['idle_loop']) {
-                // Look for any system animation to use as fallback idle
-                let foundSystemAnim = false;
-                for (const name of SYSTEM_ANIMATIONS) {
-                    if (animations[name]) {
-                        animations[name].play();
-                        foundSystemAnim = true;
-                        break;
-                    }
-                }
-                // If no system animation found, don't play anything
-                // The model will just stand still, which is better than looping an emote
+            if (!animations['idle'] && !animations['idle_loop'] && gltf.animations.length > 0) {
+                const firstAction = mixer.clipAction(gltf.animations[0]);
+                firstAction.play();
             }
         }
 
