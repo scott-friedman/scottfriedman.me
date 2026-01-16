@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Benefits of Everything | scott friedman</title>
+    <link rel="stylesheet" href="css/benefits.css">
+</head>
+<body>
+    <div class="terminal">
+        <header class="terminal-header">
+            <span class="terminal-title">BENEFITS OF EVERYTHING</span>
+            <a href="index.html" class="back-link">back to home</a>
+        </header>
+
+        <main class="terminal-body">
+            <section class="input-section">
+                <div class="input-row">
+                    <span class="prompt">&gt;</span>
+                    <label for="query-input" class="input-label">QUERY:</label>
+                    <div class="input-wrapper">
+                        <input
+                            type="text"
+                            id="query-input"
+                            placeholder="enter anything..."
+                            maxlength="200"
+                            autocomplete="off"
+                            spellcheck="false"
+                        >
+                    </div>
+                    <button id="analyze-btn" type="button">ANALYZE</button>
+                </div>
+            </section>
+
+            <div class="divider"></div>
+
+            <section id="loading" class="loading-section hidden">
+                <span class="loading-text">ANALYZING</span><span class="loading-dots"></span>
+            </section>
+
+            <section id="error" class="error-section hidden">
+                <p class="error-text" id="error-message">ERROR: Something went wrong</p>
+                <button id="retry-btn" class="retry-btn">RETRY</button>
+            </section>
+
+            <section id="results" class="results-section hidden">
+                <div class="result-header">
+                    <span class="result-label">SUBJECT:</span>
+                    <span class="result-query" id="result-query"></span>
+                    <span id="cache-badge" class="cache-badge hidden">FROM CACHE</span>
+                </div>
+                <div class="result-status">
+                    <span class="status-label">STATUS:</span>
+                    <span class="status-value">ANALYSIS COMPLETE</span>
+                </div>
+
+                <div class="result-box">
+                    <div class="box-header">BENEFITS</div>
+                    <ul class="benefits-list" id="benefits-list"></ul>
+                </div>
+
+                <div class="result-box">
+                    <div class="box-header">RECOMMENDED USAGE</div>
+                    <ul class="tips-list" id="tips-list"></ul>
+                </div>
+            </section>
+
+            <div class="divider"></div>
+
+            <section class="history-section">
+                <h2 class="history-title">SEARCH HISTORY</h2>
+                <div class="history-list" id="history-list">
+                    <p class="history-empty" id="history-empty">No searches yet. Try something!</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="js/benefits.js"></script>
+</body>
+</html>

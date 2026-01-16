@@ -1,0 +1,9 @@
+# Cloudflare Worker configuration for Benefits API proxy
+# Deploy with: npx wrangler deploy --config wrangler-benefits.toml
+
+name = "benefits-api"
+main = "benefits-proxy.js"
+compatibility_date = "2024-01-01"
+
+# After deploying, set secret via:
+# npx wrangler secret put GEMINI_API_KEY --config wrangler-benefits.toml
