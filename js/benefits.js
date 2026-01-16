@@ -283,6 +283,52 @@
     }
 
     /**
+     * Generate Firebase-safe key for expansion
+     */
+    function expansionToFirebaseKey(query, benefit) {
+        const combined = `${normalizeQuery(query)}__${benefit.toLowerCase().trim()}`;
+        return combined
+            .replace(/[.#$\[\]\/]/g, '_')
+            .replace(/\s/g, '_')
+            .substring(0, 150);
+    }
+
+    /**
+     * Load expansion from Firebase cache
+     */
+    async function loadExpansionFromFirebase(query, benefit) {
+        const fbKey = expansionToFirebaseKey(query, benefit);
+        try {
+            const snapshot = await db.ref(`benefits/expansions/${fbKey}`).once('value');
+            const data = snapshot.val();
+            if (data && data.expansion) {
+                return data.expansion;
+            }
+            return null;
+        } catch (error) {
+            console.error('Failed to load expansion from Firebase:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Save expansion to Firebase cache
+     */
+    async function saveExpansionToFirebase(query, benefit, expansion) {
+        const fbKey = expansionToFirebaseKey(query, benefit);
+        try {
+            await db.ref(`benefits/expansions/${fbKey}`).set({
+                query: normalizeQuery(query),
+                benefit: benefit,
+                expansion: expansion,
+                cachedAt: Date.now()
+            });
+        } catch (error) {
+            console.error('Failed to save expansion to Firebase:', error);
+        }
+    }
+
+    /**
      * Check if a benefit has a cached expansion
      */
     function hasExpansion(benefit) {
@@ -398,7 +444,7 @@
         const selectedBenefit = currentBenefits[selectedBenefitIndex];
         if (!selectedBenefit) return;
 
-        // Check cache first
+        // Check local cache first
         const cacheKey = getExpansionKey(lastQuery, selectedBenefit);
         if (expansionCache[cacheKey]) {
             showExpansion(expansionCache[cacheKey]);
@@ -410,16 +456,35 @@
         reallyBtn.textContent = 'LOADING...';
         reallyBtn.disabled = true;
 
-        // Gather existing expansions to avoid repetition
-        const existingExpansions = [];
-        for (const benefit of currentBenefits) {
-            const key = getExpansionKey(lastQuery, benefit);
-            if (expansionCache[key]) {
-                existingExpansions.push(expansionCache[key]);
-            }
-        }
-
         try {
+            // Check Firebase cache first
+            const firebaseCached = await loadExpansionFromFirebase(lastQuery, selectedBenefit);
+            if (firebaseCached) {
+                // Found in Firebase - use it and update local cache
+                expansionCache[cacheKey] = firebaseCached;
+                showExpansion(firebaseCached);
+                renderBenefitsList();
+                const li = benefitsList.querySelector(`li[data-index="${selectedBenefitIndex}"]`);
+                if (li) {
+                    li.classList.add('selected');
+                }
+                // Don't return - let finally block run
+                isLoadingReally = false;
+                reallyBtn.textContent = originalText;
+                reallyBtn.disabled = false;
+                return;
+            }
+
+            // Gather existing expansions to avoid repetition
+            const existingExpansions = [];
+            for (const benefit of currentBenefits) {
+                const key = getExpansionKey(lastQuery, benefit);
+                if (expansionCache[key]) {
+                    existingExpansions.push(expansionCache[key]);
+                }
+            }
+
+            // Not in any cache - call the API
             const response = await fetch(`${WORKER_URL}/api/expand-benefit`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -437,8 +502,9 @@
             }
 
             if (data.expansion) {
-                // Cache the expansion
+                // Cache locally and in Firebase
                 expansionCache[cacheKey] = data.expansion;
+                saveExpansionToFirebase(lastQuery, selectedBenefit, data.expansion);
                 showExpansion(data.expansion);
 
                 // Update the list to show indicator on this benefit
