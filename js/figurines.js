@@ -909,6 +909,12 @@
     function switchAnimation(obj, newState) {
         if (!obj.mixer || !obj.hasAnimations) return;
 
+        // 'emoting' state is handled by playEmote() - don't interfere with it
+        // This prevents the animation from being reset/restarted by Firebase sync
+        if (newState === 'emoting') {
+            return;
+        }
+
         // Map states to animation names
         const animMap = {
             'idle': ['idle', 'idle_loop', 'breathing_idle'],
@@ -929,13 +935,23 @@
             }
         }
 
-        // Fallback to first animation
+        // Fallback to first SYSTEM animation only (not custom emotes)
+        // This prevents accidentally triggering emote animations
         if (!newAction) {
-            const firstAnim = Object.values(obj.animations)[0];
-            if (firstAnim) newAction = firstAnim;
+            for (const name of SYSTEM_ANIMATIONS) {
+                if (obj.animations[name]) {
+                    newAction = obj.animations[name];
+                    break;
+                }
+            }
         }
 
-        if (newAction && newAction !== obj.currentAction) {
+        // If still no animation found, don't play anything rather than risk playing an emote
+        if (!newAction) {
+            return;
+        }
+
+        if (newAction !== obj.currentAction) {
             if (obj.currentAction) {
                 obj.currentAction.fadeOut(0.3);
             }
