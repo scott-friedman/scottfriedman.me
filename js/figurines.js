@@ -586,7 +586,7 @@
         });
 
         // Use skeleton height for animated models, bounding box for static
-        const TARGET_HEIGHT = 1.5;
+        const TARGET_HEIGHT = 2.625; // 75% bigger than original 1.5
         let scale;
 
         if (hasSkinnedMesh && skeletonHeight > 0.1) {
