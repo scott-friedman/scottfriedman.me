@@ -29,6 +29,11 @@
     const MIN_WANDER_DISTANCE = 5; // Minimum wander distance in grid units
     const MAX_WANDER_DISTANCE = 20; // Maximum wander distance in grid units
 
+    // System animations to exclude from emotes (custom user animations)
+    const SYSTEM_ANIMATIONS = ['idle', 'idle_loop', 'walk', 'walking', 'walk_loop',
+                               'dance', 'dancing', 'dance_loop', 'sleep', 'sleeping',
+                               'sit', 'sit_idle', 'eat', 'eating', 'chew', 'breathing_idle'];
+
     // Emojis for particles
     const HEARTS = ['❤️', '💕', '💖', '💗', '💓'];
     const FOODS = ['🍕', '🍔', '🌮', '🍩', '🍪', '🍰', '🧁', '🍦'];
@@ -280,11 +285,12 @@
 
         // If close enough to target, stop walking
         if (distance < 0.05) {
-            // Update Firebase with final position
+            // Update Firebase with final position and rotation
             figurinesRef.child(obj.id).update({
                 state: 'idle',
                 x: target.x,
-                z: target.z
+                z: target.z,
+                rotationY: obj.baseRotationY // Preserve final facing direction
             });
             delete walkingTargets[obj.id];
             return;
@@ -320,7 +326,8 @@
                 figurinesRef.child(obj.id).update({
                     state: 'idle',
                     x: (currentX * 10) + 50,
-                    z: (currentZ * 10) + 50
+                    z: (currentZ * 10) + 50,
+                    rotationY: obj.baseRotationY // Preserve facing direction
                 });
                 return;
             }
@@ -397,6 +404,10 @@
             case 'eating':
                 // Quick bobs
                 obj.model.position.y = obj.baseY + Math.abs(Math.sin(time * 10)) * 0.08;
+                break;
+
+            case 'emoting':
+                // Let the GLTF animation play without procedural interference
                 break;
 
             default:
@@ -544,17 +555,70 @@
         }
 
         // Scale and position
-        const box = new THREE.Box3().setFromObject(model);
-        const size = box.getSize(new THREE.Vector3());
-        console.log('Model size:', size);
-        const maxDim = Math.max(size.x, size.y, size.z);
-        const scale = maxDim > 0 ? 2 / maxDim : 1;
-        console.log('Calculated scale:', scale);
+        // Reset transforms on root
+        model.position.set(0, 0, 0);
+        model.rotation.set(0, 0, 0);
+        model.scale.set(1, 1, 1);
+        model.updateMatrixWorld(true);
+
+        // For skinned meshes (animated models from Meshy), the geometry is often
+        // exported at 1/100 scale while the skeleton is at normal scale.
+        // We need to use the skeleton bounds, not the mesh geometry bounds.
+        let hasSkinnedMesh = false;
+        let skeletonHeight = 0;
+        model.traverse(child => {
+            if (child.isSkinnedMesh && child.skeleton) {
+                hasSkinnedMesh = true;
+                const bones = child.skeleton.bones;
+                if (bones.length > 0) {
+                    // Find the vertical extent of the skeleton (min to max Y)
+                    let minY = Infinity, maxY = -Infinity;
+                    bones.forEach(bone => {
+                        const pos = new THREE.Vector3();
+                        bone.getWorldPosition(pos);
+                        minY = Math.min(minY, pos.y);
+                        maxY = Math.max(maxY, pos.y);
+                    });
+                    skeletonHeight = maxY - minY;
+                    console.log('Skeleton height:', skeletonHeight, 'from Y range:', minY, 'to', maxY);
+                }
+            }
+        });
+
+        // Use skeleton height for animated models, bounding box for static
+        const TARGET_HEIGHT = 1.5;
+        let scale;
+
+        if (hasSkinnedMesh && skeletonHeight > 0.1) {
+            // Use skeleton-based scale for animated models
+            scale = TARGET_HEIGHT / skeletonHeight;
+            console.log('Using skeleton-based scale:', scale);
+        } else {
+            // Use bounding box for static models
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            console.log('Model bounding box size:', size);
+            const maxDim = Math.max(size.x, size.y, size.z);
+            scale = maxDim > 0 ? TARGET_HEIGHT / maxDim : 1;
+        }
+
+        // Sanity check
+        if (scale > 50) {
+            console.warn('Extreme scale detected, capping to 50:', scale);
+            scale = 50;
+        }
+        if (scale < 0.001) {
+            console.warn('Extreme scale detected, flooring to 0.001:', scale);
+            scale = 0.001;
+        }
+
+        console.log('Final calculated scale:', scale);
 
         model.scale.setScalar(scale);
+        model.updateMatrixWorld(true);
 
         // Position model with feet at y=0 (for accurate shadow)
-        box.setFromObject(model);
+        const box = new THREE.Box3().setFromObject(model);
         const minY = box.min.y;
         model.position.set(worldX, -minY, worldZ);
 
@@ -624,6 +688,17 @@
         }
 
         // Store in our objects map
+        // Use saved rotation from Firebase, or generate a random initial rotation for variety
+        let savedRotation;
+        if (figurine.rotationY !== undefined && figurine.rotationY !== 0) {
+            // Use the saved non-zero rotation
+            savedRotation = figurine.rotationY;
+        } else {
+            // Generate a random initial rotation based on figurine ID for consistency
+            // This ensures figurines don't all face the same direction on load
+            const idHash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+            savedRotation = (idHash % 628) / 100; // 0 to ~2π radians
+        }
         figurineObjects[id] = {
             id,
             model,
@@ -632,8 +707,11 @@
             hasAnimations,
             currentAction: null,
             baseY: model.position.y,
-            baseRotationY: model.rotation.y,
-            baseScale: scale
+            baseRotationY: savedRotation,
+            baseScale: scale,
+            // Per-figurine timing for independent movement schedules
+            nextWanderTime: Date.now() + Math.random() * 10000,   // Stagger initial wander (0-10s)
+            nextEmoteTime: Date.now() + 60000 + Math.random() * 120000  // Stagger initial emote (1-3 min)
         };
 
         scene.add(model);
@@ -644,6 +722,12 @@
         // Handle initial state
         if (figurine.state === 'sleeping') {
             startSleepParticles(id);
+        } else if (figurine.state === 'walking') {
+            // If loading a figurine that was walking but we don't have a target,
+            // reset to idle (prevents stuck walking state after page refresh)
+            if (!walkingTargets[id]) {
+                figurinesRef.child(id).update({ state: 'idle' });
+            }
         }
 
         console.log(`Loaded figurine: ${figurine.name}`);
@@ -790,10 +874,17 @@
             obj.model.position.lerp(targetPos, 0.1);
         }
 
-        // Update rotation based on direction
+        // Update rotation from Firebase when:
+        // 1. Walking (to face movement direction)
+        // 2. Transitioning from walking to idle (preserve final facing direction)
         if (figurine.rotationY !== undefined) {
-            obj.model.rotation.y = figurine.rotationY;
-            obj.baseRotationY = figurine.rotationY;
+            const wasWalking = oldState === 'walking';
+            const isWalking = figurine.state === 'walking';
+            const justStoppedWalking = wasWalking && !isWalking;
+
+            if (isWalking || justStoppedWalking) {
+                obj.baseRotationY = figurine.rotationY;
+            }
         }
 
         // Handle animation state changes
@@ -973,6 +1064,9 @@
                 case 'dance':
                     toggleDance(id, figurine);
                     break;
+                case 'emote':
+                    playEmote(id, obj, figurine);
+                    break;
                 case 'sleep':
                     toggleSleep(id, figurine);
                     break;
@@ -1101,6 +1195,63 @@
             state: newState,
             lastInteraction: Date.now()
         });
+    }
+
+    /**
+     * Get available custom emote animations (excludes system animations)
+     */
+    function getAvailableEmotes(obj) {
+        if (!obj.animations) return [];
+        return Object.keys(obj.animations).filter(name =>
+            !SYSTEM_ANIMATIONS.includes(name)
+        );
+    }
+
+    /**
+     * Play a random emote animation
+     */
+    function playEmote(id, obj, figurine) {
+        const emotes = getAvailableEmotes(obj);
+        if (emotes.length === 0) return; // No custom emotes available
+
+        // Prevent double-triggering if already emoting
+        if (figurine.state === 'emoting' || obj.isEmoting) return;
+        obj.isEmoting = true;
+
+        const randomEmote = emotes[Math.floor(Math.random() * emotes.length)];
+        const action = obj.animations[randomEmote];
+
+        // Play once, then return to idle
+        action.setLoop(THREE.LoopOnce);
+        action.clampWhenFinished = true;
+
+        if (obj.currentAction) {
+            obj.currentAction.fadeOut(0.3);
+        }
+        action.reset().fadeIn(0.3).play();
+        obj.currentAction = action;
+
+        // Update Firebase state
+        figurinesRef.child(id).update({
+            state: 'emoting',
+            lastInteraction: Date.now()
+        });
+
+        // Return to idle when animation completes
+        // Use minimum 2 seconds if duration is too short or invalid
+        const clipDuration = action.getClip().duration * 1000;
+        const duration = Math.max(2000, clipDuration || 2000);
+        console.log(`Playing emote "${randomEmote}" for ${duration}ms (clip: ${clipDuration}ms)`);
+
+        setTimeout(() => {
+            // Only update if still emoting (prevent race conditions)
+            if (obj.isEmoting) {
+                figurinesRef.child(id).update({ state: 'idle' });
+                obj.nextEmoteTime = Date.now() + 90000 + Math.random() * 60000;
+                obj.isEmoting = false;
+                console.log(`Emote finished, next emote in ${(obj.nextEmoteTime - Date.now()) / 1000}s`);
+            }
+        }, duration + 300); // +300ms for fade
     }
 
     /**
@@ -1272,22 +1423,30 @@
 
     /**
      * Idle wandering - makes figurines naturally explore (Mii-like behavior)
+     * Each figurine has its own schedule to prevent synchronized movement
      */
     function idleWander() {
+        const now = Date.now();
         Object.entries(figurines).forEach(([id, figurine]) => {
-            // Skip if already walking, dancing, sleeping, or has a target
-            if (figurine.state !== 'idle' || walkingTargets[id]) return;
-
-            // Only wander if not recently interacted with (shorter delay for Mii-like activity)
-            const timeSinceInteraction = Date.now() - (figurine.lastInteraction || 0);
-            if (timeSinceInteraction < 4000) return;
-
-            // Mii-like: Higher base chance to wander, creates more lively environment
-            const wanderChance = Math.min(0.7, 0.35 + (timeSinceInteraction / 30000) * 0.35);
-            if (Math.random() > wanderChance) return;
-
             const obj = figurineObjects[id];
             if (!obj || !obj.model) return;
+
+            // Check if it's time for this figurine to consider wandering
+            if (now < obj.nextWanderTime) return;
+
+            // Skip if already walking, dancing, sleeping, emoting, or has a target
+            if (figurine.state !== 'idle' || walkingTargets[id]) {
+                // Still update next wander time so we check again later
+                obj.nextWanderTime = now + 2000 + Math.random() * 3000;
+                return;
+            }
+
+            // Short delay after interaction before wandering again
+            const timeSinceInteraction = now - (figurine.lastInteraction || 0);
+            if (timeSinceInteraction < 2000) {
+                obj.nextWanderTime = now + 2000;
+                return;
+            }
 
             // Calculate a random nearby destination
             const currentX = figurine.x || 50;
@@ -1316,20 +1475,66 @@
                 }
             }
 
-            // If no clear destination found, skip this wander attempt
-            if (!foundClear) return;
+            // If no clear destination found, skip and try again later
+            if (!foundClear) {
+                obj.nextWanderTime = now + 3000 + Math.random() * 5000;
+                return;
+            }
 
             // Set the walking target for smooth movement
             walkingTargets[id] = {
                 x: newX,
                 z: newZ,
-                startTime: Date.now()
+                startTime: now
             };
 
             // Update state to walking (position will update smoothly via animation loop)
             figurinesRef.child(id).update({
                 state: 'walking'
             });
+
+            // Set next wander time (5-15 seconds after this walk completes)
+            obj.nextWanderTime = now + 5000 + Math.random() * 10000;
+        });
+    }
+
+    /**
+     * Auto-emote - occasionally play random emote animations
+     * Each figurine has its own schedule (~2 min average between emotes)
+     */
+    function autoEmote() {
+        const now = Date.now();
+        Object.entries(figurines).forEach(([id, figurine]) => {
+            const obj = figurineObjects[id];
+            if (!obj || !obj.hasAnimations) return;
+
+            // Skip if currently emoting
+            if (obj.isEmoting) return;
+
+            // Check if it's time for this figurine to consider emoting
+            if (now < obj.nextEmoteTime) return;
+
+            // Only emote if idle
+            if (figurine.state !== 'idle') {
+                // Try again later
+                obj.nextEmoteTime = now + 10000 + Math.random() * 20000;
+                return;
+            }
+
+            // Check if has custom emotes
+            const emotes = getAvailableEmotes(obj);
+            if (emotes.length === 0) {
+                // No custom emotes, check again much later
+                obj.nextEmoteTime = now + 300000; // 5 minutes
+                return;
+            }
+
+            // Set next emote time far in the future immediately (will be reset properly when animation completes)
+            // This prevents repeated triggering if something goes wrong
+            obj.nextEmoteTime = now + 180000;
+
+            // Play random emote
+            playEmote(id, obj, figurine);
         });
     }
 
@@ -1677,7 +1882,10 @@
         initFirebase();
 
         statDecayInterval = setInterval(decayStats, STAT_DECAY_INTERVAL);
-        idleWanderInterval = setInterval(idleWander, IDLE_WANDER_INTERVAL);
+        idleWanderInterval = setInterval(() => {
+            idleWander();
+            autoEmote();
+        }, IDLE_WANDER_INTERVAL);
     }
 
     // Start when DOM is ready
