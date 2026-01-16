@@ -19,12 +19,15 @@
 
     // Constants
     const STAT_DECAY_INTERVAL = 60000;
-    const IDLE_WANDER_INTERVAL = 5000; // Check for wandering more frequently
+    const IDLE_WANDER_INTERVAL = 3000; // Check for wandering more frequently (Mii-like)
     const HUNGER_DECAY_RATE = 2;
     const HAPPINESS_DECAY_RATE = 1;
     const ENERGY_DECAY_RATE = 1;
     const ENERGY_RECOVERY_RATE = 5;
-    const WALK_SPEED = 0.02; // Units per frame for smooth walking
+    const WALK_SPEED = 0.015; // Slightly slower for more natural movement
+    const COLLISION_RADIUS = 0.4; // Collision distance between figurines (world units)
+    const MIN_WANDER_DISTANCE = 5; // Minimum wander distance in grid units
+    const MAX_WANDER_DISTANCE = 20; // Maximum wander distance in grid units
 
     // Emojis for particles
     const HEARTS = ['❤️', '💕', '💖', '💗', '💓'];
@@ -222,6 +225,34 @@
     }
 
     /**
+     * Check if a position would collide with other figurines
+     */
+    function checkCollision(id, newX, newZ) {
+        for (const [otherId, otherObj] of Object.entries(figurineObjects)) {
+            if (otherId === id || !otherObj.model) continue;
+
+            const dx = newX - otherObj.model.position.x;
+            const dz = newZ - otherObj.model.position.z;
+            const distance = Math.sqrt(dx * dx + dz * dz);
+
+            if (distance < COLLISION_RADIUS) {
+                return { collided: true, otherId, otherObj };
+            }
+        }
+        return { collided: false };
+    }
+
+    /**
+     * Get avoidance direction when collision detected
+     */
+    function getAvoidanceDirection(obj, otherObj) {
+        const dx = obj.model.position.x - otherObj.model.position.x;
+        const dz = obj.model.position.z - otherObj.model.position.z;
+        const length = Math.sqrt(dx * dx + dz * dz) || 0.01;
+        return { x: dx / length, z: dz / length };
+    }
+
+    /**
      * Update smooth walking movement
      */
     function updateWalking(obj, delta) {
@@ -262,14 +293,44 @@
         // Move towards target
         const moveSpeed = WALK_SPEED * 60 * delta; // Normalize for frame rate
         const moveAmount = Math.min(moveSpeed, distance);
-        const moveX = (dx / distance) * moveAmount;
-        const moveZ = (dz / distance) * moveAmount;
+        let moveX = (dx / distance) * moveAmount;
+        let moveZ = (dz / distance) * moveAmount;
+
+        // Check for collision at new position
+        const newX = currentX + moveX;
+        const newZ = currentZ + moveZ;
+        const collision = checkCollision(obj.id, newX, newZ);
+
+        if (collision.collided) {
+            // Get avoidance direction (away from the other figurine)
+            const avoidDir = getAvoidanceDirection(obj, collision.otherObj);
+
+            // Blend avoidance with original direction
+            moveX = moveX * 0.3 + avoidDir.x * moveAmount * 0.7;
+            moveZ = moveZ * 0.3 + avoidDir.z * moveAmount * 0.7;
+
+            // Check if still colliding after adjustment
+            const adjustedX = currentX + moveX;
+            const adjustedZ = currentZ + moveZ;
+            const stillColliding = checkCollision(obj.id, adjustedX, adjustedZ);
+
+            if (stillColliding.collided) {
+                // Stop and pick a new destination
+                delete walkingTargets[obj.id];
+                figurinesRef.child(obj.id).update({
+                    state: 'idle',
+                    x: (currentX * 10) + 50,
+                    z: (currentZ * 10) + 50
+                });
+                return;
+            }
+        }
 
         obj.model.position.x += moveX;
         obj.model.position.z += moveZ;
 
         // Face movement direction (smooth rotation)
-        const targetRotation = Math.atan2(dx, dz);
+        const targetRotation = Math.atan2(moveX, moveZ);
         const currentRotation = obj.model.rotation.y;
         const rotationDiff = targetRotation - currentRotation;
 
@@ -292,11 +353,23 @@
         const time = clock.getElapsedTime();
         const state = figurine.state || 'idle';
 
+        // Use unique offset per figurine for desynchronized animations
+        const idOffset = obj.id ? obj.id.charCodeAt(0) * 0.1 : 0;
+        const personalTime = time + idOffset;
+
         switch (state) {
             case 'idle':
-                // Gentle bobbing
-                obj.model.position.y = obj.baseY + Math.sin(time * 2) * 0.05;
-                obj.model.rotation.y = obj.baseRotationY + Math.sin(time * 0.5) * 0.05;
+                // Mii-like idle: gentle bobbing with occasional looking around
+                const bobSpeed = 1.5 + Math.sin(personalTime * 0.3) * 0.3; // Varying bob speed
+                obj.model.position.y = obj.baseY + Math.sin(personalTime * bobSpeed) * 0.03;
+
+                // Occasional head turns (looking around curiously)
+                const lookCycle = Math.sin(personalTime * 0.2) + Math.sin(personalTime * 0.7) * 0.5;
+                const lookAmount = lookCycle * 0.15; // More pronounced looking around
+                obj.model.rotation.y = obj.baseRotationY + lookAmount;
+
+                // Subtle weight shifting (lean side to side occasionally)
+                obj.model.rotation.z = Math.sin(personalTime * 0.4) * 0.02;
                 break;
 
             case 'walking':
@@ -1176,19 +1249,41 @@
     }
 
     /**
-     * Idle wandering - makes figurines naturally explore
+     * Check if a destination would be too close to other figurines
+     */
+    function isDestinationClear(id, destX, destZ) {
+        const worldX = (destX - 50) / 10;
+        const worldZ = (destZ - 50) / 10;
+
+        for (const [otherId, otherObj] of Object.entries(figurineObjects)) {
+            if (otherId === id || !otherObj.model) continue;
+
+            const dx = worldX - otherObj.model.position.x;
+            const dz = worldZ - otherObj.model.position.z;
+            const distance = Math.sqrt(dx * dx + dz * dz);
+
+            // Keep more distance for destination planning
+            if (distance < COLLISION_RADIUS * 2) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Idle wandering - makes figurines naturally explore (Mii-like behavior)
      */
     function idleWander() {
         Object.entries(figurines).forEach(([id, figurine]) => {
-            // Skip if already walking or has a target
+            // Skip if already walking, dancing, sleeping, or has a target
             if (figurine.state !== 'idle' || walkingTargets[id]) return;
 
-            // Only wander if not recently interacted with
+            // Only wander if not recently interacted with (shorter delay for Mii-like activity)
             const timeSinceInteraction = Date.now() - (figurine.lastInteraction || 0);
-            if (timeSinceInteraction < 8000) return;
+            if (timeSinceInteraction < 4000) return;
 
-            // Higher chance to wander the longer they've been idle
-            const wanderChance = Math.min(0.6, 0.2 + (timeSinceInteraction / 60000) * 0.3);
+            // Mii-like: Higher base chance to wander, creates more lively environment
+            const wanderChance = Math.min(0.7, 0.35 + (timeSinceInteraction / 30000) * 0.35);
             if (Math.random() > wanderChance) return;
 
             const obj = figurineObjects[id];
@@ -1198,11 +1293,31 @@
             const currentX = figurine.x || 50;
             const currentZ = figurine.z || 50;
 
-            // Smaller, more natural movements
-            const deltaX = (Math.random() - 0.5) * 15;
-            const deltaZ = (Math.random() - 0.5) * 15;
-            const newX = Math.max(15, Math.min(85, currentX + deltaX));
-            const newZ = Math.max(15, Math.min(85, currentZ + deltaZ));
+            // Mii-like: Variable movement distances (sometimes short strolls, sometimes longer walks)
+            const isShortWalk = Math.random() < 0.6;
+            const maxDist = isShortWalk ? MIN_WANDER_DISTANCE + 5 : MAX_WANDER_DISTANCE;
+            const minDist = isShortWalk ? MIN_WANDER_DISTANCE : MIN_WANDER_DISTANCE + 5;
+
+            // Try to find a clear destination (up to 5 attempts)
+            let newX, newZ;
+            let foundClear = false;
+
+            for (let attempt = 0; attempt < 5; attempt++) {
+                // Random angle for more natural movement patterns
+                const angle = Math.random() * Math.PI * 2;
+                const distance = minDist + Math.random() * (maxDist - minDist);
+
+                newX = Math.max(15, Math.min(85, currentX + Math.cos(angle) * distance));
+                newZ = Math.max(15, Math.min(85, currentZ + Math.sin(angle) * distance));
+
+                if (isDestinationClear(id, newX, newZ)) {
+                    foundClear = true;
+                    break;
+                }
+            }
+
+            // If no clear destination found, skip this wander attempt
+            if (!foundClear) return;
 
             // Set the walking target for smooth movement
             walkingTargets[id] = {
