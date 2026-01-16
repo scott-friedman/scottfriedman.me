@@ -710,8 +710,7 @@
             baseRotationY: savedRotation,
             baseScale: scale,
             // Per-figurine timing for independent movement schedules
-            nextWanderTime: Date.now() + Math.random() * 10000,   // Stagger initial wander (0-10s)
-            nextEmoteTime: Date.now() + 60000 + Math.random() * 120000  // Stagger initial emote (1-3 min)
+            nextWanderTime: Date.now() + Math.random() * 10000   // Stagger initial wander (0-10s)
         };
 
         scene.add(model);
@@ -1062,6 +1061,12 @@
 
         const hit = getIntersectedFigurine({ clientX, clientY });
 
+        // Emote tool works anywhere - triggers random figurine with emotes
+        if (currentTool === 'emote') {
+            triggerRandomEmote();
+            return;
+        }
+
         if (hit) {
             const { id, obj } = hit;
             const figurine = figurines[id];
@@ -1079,9 +1084,6 @@
                     break;
                 case 'dance':
                     toggleDance(id, figurine);
-                    break;
-                case 'emote':
-                    playEmote(id, obj, figurine);
                     break;
                 case 'sleep':
                     toggleSleep(id, figurine);
@@ -1263,9 +1265,7 @@
             // Only update if still emoting (prevent race conditions)
             if (obj.isEmoting) {
                 figurinesRef.child(id).update({ state: 'idle' });
-                obj.nextEmoteTime = Date.now() + 90000 + Math.random() * 60000;
                 obj.isEmoting = false;
-                console.log(`Emote finished, next emote in ${(obj.nextEmoteTime - Date.now()) / 1000}s`);
             }
         }, duration + 300); // +300ms for fade
     }
@@ -1515,43 +1515,28 @@
     }
 
     /**
-     * Auto-emote - occasionally play random emote animations
-     * Each figurine has its own schedule (~2 min average between emotes)
+     * Trigger a random emote on a random figurine that has emotes available
      */
-    function autoEmote() {
-        const now = Date.now();
+    function triggerRandomEmote() {
+        // Find all figurines that have custom emotes and are idle
+        const candidates = [];
         Object.entries(figurines).forEach(([id, figurine]) => {
             const obj = figurineObjects[id];
             if (!obj || !obj.hasAnimations) return;
-
-            // Skip if currently emoting
             if (obj.isEmoting) return;
+            if (figurine.state !== 'idle') return;
 
-            // Check if it's time for this figurine to consider emoting
-            if (now < obj.nextEmoteTime) return;
-
-            // Only emote if idle
-            if (figurine.state !== 'idle') {
-                // Try again later
-                obj.nextEmoteTime = now + 10000 + Math.random() * 20000;
-                return;
-            }
-
-            // Check if has custom emotes
             const emotes = getAvailableEmotes(obj);
-            if (emotes.length === 0) {
-                // No custom emotes, check again much later
-                obj.nextEmoteTime = now + 300000; // 5 minutes
-                return;
+            if (emotes.length > 0) {
+                candidates.push({ id, obj, figurine });
             }
-
-            // Set next emote time far in the future immediately (will be reset properly when animation completes)
-            // This prevents repeated triggering if something goes wrong
-            obj.nextEmoteTime = now + 180000;
-
-            // Play random emote
-            playEmote(id, obj, figurine);
         });
+
+        if (candidates.length === 0) return;
+
+        // Pick a random candidate
+        const chosen = candidates[Math.floor(Math.random() * candidates.length)];
+        playEmote(chosen.id, chosen.obj, chosen.figurine);
     }
 
     /**
@@ -1898,10 +1883,7 @@
         initFirebase();
 
         statDecayInterval = setInterval(decayStats, STAT_DECAY_INTERVAL);
-        idleWanderInterval = setInterval(() => {
-            idleWander();
-            autoEmote();
-        }, IDLE_WANDER_INTERVAL);
+        idleWanderInterval = setInterval(idleWander, IDLE_WANDER_INTERVAL);
     }
 
     // Start when DOM is ready
