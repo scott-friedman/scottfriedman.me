@@ -35,6 +35,9 @@
     const historyList = document.getElementById('history-list');
     const historyEmpty = document.getElementById('history-empty');
     const shareLink = document.getElementById('share-link');
+    const tellMoreBtn = document.getElementById('tell-more-btn');
+    const reallyBtn = document.getElementById('really-btn');
+    const reallyExpansion = document.getElementById('really-expansion');
 
     // State
     let db = null;
@@ -42,6 +45,10 @@
     let cacheRef = null;
     let lastQuery = '';
     let historyData = {};
+    let currentBenefits = [];
+    let selectedBenefitIndex = -1;
+    let isLoadingMore = false;
+    let isLoadingReally = false;
 
     /**
      * Initialize Firebase
@@ -250,10 +257,17 @@
             cacheBadge.classList.add('hidden');
         }
 
-        // Render benefits
-        benefitsList.innerHTML = data.benefits.map(benefit =>
-            `<li>${escapeHtml(benefit)}</li>`
-        ).join('');
+        // Store current benefits for "Tell me more" and "Really?"
+        currentBenefits = [...data.benefits];
+        selectedBenefitIndex = -1;
+
+        // Reset buttons state
+        reallyBtn.disabled = true;
+        reallyExpansion.classList.add('hidden');
+        reallyExpansion.innerHTML = '';
+
+        // Render benefits with click handlers
+        renderBenefitsList();
 
         // Render tips
         tipsList.innerHTML = data.usageTips.map(tip =>
@@ -265,6 +279,144 @@
         // Scroll results into view on mobile
         if (window.innerWidth <= 600) {
             resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    /**
+     * Render the benefits list with click handlers
+     */
+    function renderBenefitsList() {
+        benefitsList.innerHTML = currentBenefits.map((benefit, index) =>
+            `<li data-index="${index}">${escapeHtml(benefit)}</li>`
+        ).join('');
+
+        // Add click handlers to each benefit
+        benefitsList.querySelectorAll('li').forEach(li => {
+            li.addEventListener('click', () => {
+                const index = parseInt(li.dataset.index, 10);
+                selectBenefit(index, li);
+            });
+        });
+    }
+
+    /**
+     * Select a benefit with animation
+     */
+    function selectBenefit(index, element) {
+        // Remove selection from previous
+        benefitsList.querySelectorAll('li').forEach(li => {
+            li.classList.remove('selected', 'selecting');
+        });
+
+        // Add selecting animation
+        element.classList.add('selecting');
+
+        // After animation, keep it selected
+        setTimeout(() => {
+            element.classList.remove('selecting');
+            element.classList.add('selected');
+        }, 300);
+
+        selectedBenefitIndex = index;
+        reallyBtn.disabled = false;
+
+        // Clear any previous expansion
+        reallyExpansion.classList.add('hidden');
+        reallyExpansion.innerHTML = '';
+    }
+
+    /**
+     * Handle "Tell me more..." button - adds one more benefit
+     */
+    async function handleTellMore() {
+        if (isLoadingMore || !lastQuery) return;
+
+        isLoadingMore = true;
+        const originalText = tellMoreBtn.textContent;
+        tellMoreBtn.textContent = 'LOADING...';
+        tellMoreBtn.disabled = true;
+
+        try {
+            const response = await fetch(`${WORKER_URL}/api/more-benefit`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query: lastQuery,
+                    existingBenefits: currentBenefits
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to get more benefits');
+            }
+
+            if (data.benefit) {
+                currentBenefits.push(data.benefit);
+                renderBenefitsList();
+
+                // Flash the new benefit
+                const newLi = benefitsList.querySelector(`li[data-index="${currentBenefits.length - 1}"]`);
+                if (newLi) {
+                    newLi.classList.add('selecting');
+                    setTimeout(() => newLi.classList.remove('selecting'), 300);
+                }
+            }
+
+        } catch (error) {
+            console.error('Tell me more error:', error);
+        } finally {
+            isLoadingMore = false;
+            tellMoreBtn.textContent = originalText;
+            tellMoreBtn.disabled = false;
+        }
+    }
+
+    /**
+     * Handle "Really?" button - expands on the selected benefit
+     */
+    async function handleReally() {
+        if (isLoadingReally || selectedBenefitIndex < 0) return;
+
+        const selectedBenefit = currentBenefits[selectedBenefitIndex];
+        if (!selectedBenefit) return;
+
+        isLoadingReally = true;
+        const originalText = reallyBtn.textContent;
+        reallyBtn.textContent = 'LOADING...';
+        reallyBtn.disabled = true;
+
+        try {
+            const response = await fetch(`${WORKER_URL}/api/expand-benefit`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query: lastQuery,
+                    benefit: selectedBenefit
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to expand benefit');
+            }
+
+            if (data.expansion) {
+                reallyExpansion.innerHTML = `
+                    <div class="expansion-label">EXPANDED:</div>
+                    <p>${escapeHtml(data.expansion)}</p>
+                `;
+                reallyExpansion.classList.remove('hidden');
+            }
+
+        } catch (error) {
+            console.error('Really? error:', error);
+        } finally {
+            isLoadingReally = false;
+            reallyBtn.textContent = originalText;
+            reallyBtn.disabled = false;
         }
     }
 
@@ -393,6 +545,16 @@
         // Share link button
         if (shareLink) {
             shareLink.addEventListener('click', copyShareLink);
+        }
+
+        // Tell me more button
+        if (tellMoreBtn) {
+            tellMoreBtn.addEventListener('click', handleTellMore);
+        }
+
+        // Really? button
+        if (reallyBtn) {
+            reallyBtn.addEventListener('click', handleReally);
         }
     }
 

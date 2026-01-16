@@ -85,6 +85,14 @@ export default {
                 return await handleBenefits(request, env, corsHeaders);
             }
 
+            if (path === '/api/more-benefit' && request.method === 'POST') {
+                return await handleMoreBenefit(request, env, corsHeaders);
+            }
+
+            if (path === '/api/expand-benefit' && request.method === 'POST') {
+                return await handleExpandBenefit(request, env, corsHeaders);
+            }
+
             if (path === '/api/health') {
                 return jsonResponse({ status: 'ok', timestamp: Date.now() }, 200, corsHeaders);
             }
@@ -170,6 +178,78 @@ async function handleBenefits(request, env, corsHeaders) {
 }
 
 /**
+ * POST /api/more-benefit
+ * Body: { query: string, existingBenefits: string[] }
+ * Returns: { benefit: string }
+ */
+async function handleMoreBenefit(request, env, corsHeaders) {
+    // Rate limiting
+    const clientIP = request.headers.get('CF-Connecting-IP') || 'unknown';
+    if (!checkRateLimit(clientIP)) {
+        return jsonResponse({
+            error: 'Rate limit exceeded. Please try again in a minute.'
+        }, 429, corsHeaders);
+    }
+
+    let body;
+    try {
+        body = await request.json();
+    } catch {
+        return jsonResponse({ error: 'Invalid JSON' }, 400, corsHeaders);
+    }
+
+    const { query, existingBenefits } = body;
+
+    if (!query || !Array.isArray(existingBenefits)) {
+        return jsonResponse({ error: 'Query and existingBenefits are required' }, 400, corsHeaders);
+    }
+
+    const result = await callGeminiForMoreBenefit(env, query, existingBenefits);
+
+    if (result.error) {
+        return jsonResponse({ error: result.error }, 500, corsHeaders);
+    }
+
+    return jsonResponse({ benefit: result.benefit }, 200, corsHeaders);
+}
+
+/**
+ * POST /api/expand-benefit
+ * Body: { query: string, benefit: string }
+ * Returns: { expansion: string }
+ */
+async function handleExpandBenefit(request, env, corsHeaders) {
+    // Rate limiting
+    const clientIP = request.headers.get('CF-Connecting-IP') || 'unknown';
+    if (!checkRateLimit(clientIP)) {
+        return jsonResponse({
+            error: 'Rate limit exceeded. Please try again in a minute.'
+        }, 429, corsHeaders);
+    }
+
+    let body;
+    try {
+        body = await request.json();
+    } catch {
+        return jsonResponse({ error: 'Invalid JSON' }, 400, corsHeaders);
+    }
+
+    const { query, benefit } = body;
+
+    if (!query || !benefit) {
+        return jsonResponse({ error: 'Query and benefit are required' }, 400, corsHeaders);
+    }
+
+    const result = await callGeminiForExpansion(env, query, benefit);
+
+    if (result.error) {
+        return jsonResponse({ error: result.error }, 500, corsHeaders);
+    }
+
+    return jsonResponse({ expansion: result.expansion }, 200, corsHeaders);
+}
+
+/**
  * Check Firebase cache for existing result
  */
 async function checkCache(cacheKey) {
@@ -219,17 +299,17 @@ async function callGemini(env, query) {
     const prompt = `List benefits of "${query}".
 
 Rules:
-- Each benefit: 1 sentence max (2 only if essential)
-- Be specific and insightful, not generic
+- 3 to 5 benefits (use fewer if 3 makes the point, add more only if genuinely useful)
+- Each benefit is ONE sentence only (under 15 words)
+- Exactly 2 usage tips, each ONE sentence only (under 15 words)
+- Be specific, not generic
 - For negative topics, find genuine silver linings
 
 Return JSON only:
 {
-  "benefits": ["benefit 1", "benefit 2", "benefit 3", "benefit 4", "benefit 5"],
-  "usageTips": ["how to obtain/apply benefit 1", "tip 2"]
-}
-
-5-7 benefits, 2-3 usage tips. Keep it brief.`;
+  "benefits": ["benefit 1", "benefit 2", "benefit 3"],
+  "usageTips": ["tip 1", "tip 2"]
+}`;
 
     try {
         const response = await fetch(`${GEMINI_URL}?key=${env.GEMINI_API_KEY}`, {
@@ -293,6 +373,110 @@ Return JSON only:
     } catch (error) {
         console.error('Gemini API call failed:', error);
         return { error: 'Failed to connect to AI service. Please try again.' };
+    }
+}
+
+/**
+ * Call Gemini to get one more benefit
+ */
+async function callGeminiForMoreBenefit(env, query, existingBenefits) {
+    const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+
+    const prompt = `For "${query}", give me ONE more benefit that is different from these existing ones:
+${existingBenefits.map((b, i) => `${i + 1}. ${b}`).join('\n')}
+
+Rules:
+- ONE sentence only (under 15 words)
+- Must be genuinely different from the existing benefits
+- Be specific, not generic
+
+Return ONLY the benefit text, nothing else.`;
+
+    try {
+        const response = await fetch(`${GEMINI_URL}?key=${env.GEMINI_API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    temperature: 0.8,
+                    maxOutputTokens: 100,
+                    topP: 0.9
+                },
+                safetySettings: [
+                    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+                    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+                    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+                    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" }
+                ]
+            })
+        });
+
+        if (!response.ok) {
+            return { error: 'Failed to generate benefit' };
+        }
+
+        const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (!text) {
+            return { error: 'Empty response' };
+        }
+
+        return { benefit: text.trim() };
+
+    } catch (error) {
+        console.error('Gemini API call failed:', error);
+        return { error: 'Failed to connect to AI service' };
+    }
+}
+
+/**
+ * Call Gemini to expand on a benefit claim
+ */
+async function callGeminiForExpansion(env, query, benefit) {
+    const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+
+    const prompt = `Regarding "${query}", someone claims: "${benefit}"
+
+Explain why this is true in 2-3 sentences. Be specific and cite evidence or reasoning where possible. Keep it concise but informative.`;
+
+    try {
+        const response = await fetch(`${GEMINI_URL}?key=${env.GEMINI_API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    temperature: 0.7,
+                    maxOutputTokens: 200,
+                    topP: 0.9
+                },
+                safetySettings: [
+                    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+                    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+                    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+                    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" }
+                ]
+            })
+        });
+
+        if (!response.ok) {
+            return { error: 'Failed to expand benefit' };
+        }
+
+        const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (!text) {
+            return { error: 'Empty response' };
+        }
+
+        return { expansion: text.trim() };
+
+    } catch (error) {
+        console.error('Gemini API call failed:', error);
+        return { error: 'Failed to connect to AI service' };
     }
 }
 
