@@ -945,8 +945,12 @@
             }
         }
 
-        // If still no animation found, don't play anything rather than risk playing an emote
+        // If no animation found, stop current animation (important when leaving emote state)
         if (!newAction) {
+            if (obj.currentAction) {
+                obj.currentAction.fadeOut(0.3);
+                obj.currentAction = null;
+            }
             return;
         }
 
