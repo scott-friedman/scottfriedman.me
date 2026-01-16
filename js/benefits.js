@@ -337,9 +337,16 @@
         selectedBenefitIndex = index;
         reallyBtn.disabled = false;
 
-        // Clear any previous expansion
-        reallyExpansion.classList.add('hidden');
-        reallyExpansion.innerHTML = '';
+        // Check if this benefit has a cached expansion - auto-show it
+        const selectedBenefit = currentBenefits[index];
+        const cacheKey = getExpansionKey(lastQuery, selectedBenefit);
+        if (expansionCache[cacheKey]) {
+            showExpansion(expansionCache[cacheKey], true);
+        } else {
+            // Clear any previous expansion
+            reallyExpansion.classList.add('hidden');
+            reallyExpansion.innerHTML = '';
+        }
     }
 
     /**

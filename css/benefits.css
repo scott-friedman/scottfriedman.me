@@ -410,6 +410,7 @@ body::before {
 /* Expansion indicator for benefits with cached expansions */
 .benefits-list li.has-expansion {
     position: relative;
+    padding-right: 1.5rem;
 }
 
 .benefits-list li.has-expansion .expansion-indicator {
