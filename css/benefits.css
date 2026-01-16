@@ -372,6 +372,7 @@ body::before {
 .history-list {
     max-height: 200px;
     overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .history-list::-webkit-scrollbar {
@@ -424,16 +425,34 @@ body::before {
     white-space: nowrap;
 }
 
-.history-dots {
-    color: var(--terminal-border);
-    margin: 0 0.5rem;
-    flex-shrink: 0;
-}
-
 .history-count {
     color: var(--amber-dim);
     font-size: 0.8rem;
     flex-shrink: 0;
+    white-space: nowrap;
+    margin-left: 0.5rem;
+}
+
+/* Share button */
+.share-btn {
+    display: block;
+    margin: 1.5rem auto 0;
+    padding: 0.5rem 1.5rem;
+    background: transparent;
+    border: 1px solid var(--amber-dim);
+    color: var(--amber);
+    font-family: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    transition: all 0.2s;
+}
+
+.share-btn:hover {
+    background: var(--amber-dim);
+    color: var(--terminal-bg);
+    border-color: var(--amber);
 }
 
 /* Hidden utility */

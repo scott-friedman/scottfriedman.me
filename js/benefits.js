@@ -34,6 +34,7 @@
     const tipsList = document.getElementById('tips-list');
     const historyList = document.getElementById('history-list');
     const historyEmpty = document.getElementById('history-empty');
+    const shareLink = document.getElementById('share-link');
 
     // State
     let db = null;
@@ -104,7 +105,7 @@
     }
 
     /**
-     * Save to history (add new entry or update existing)
+     * Save to history (only for new searches from input, not history clicks)
      */
     async function saveToHistory(query, normalizedQuery) {
         // Check if this query already exists in history
@@ -113,10 +114,10 @@
         });
 
         if (existingKey) {
-            // Update existing entry: increment click count and update timestamp
+            // Update timestamp to move to top, increment view count
             await historyRef.child(existingKey).update({
                 timestamp: Date.now(),
-                clickCount: (historyData[existingKey].clickCount || 1) + 1
+                viewCount: (historyData[existingKey].viewCount || 1) + 1
             });
         } else {
             // Add new entry
@@ -124,27 +125,70 @@
                 query: query,
                 normalizedQuery: normalizedQuery,
                 timestamp: Date.now(),
-                clickCount: 1
+                viewCount: 1
             });
         }
     }
 
     /**
-     * Increment click count for a history item
+     * Increment view count for a history item (without updating timestamp)
      */
-    async function incrementHistoryClick(key) {
+    async function incrementViewCount(key) {
         const current = historyData[key];
         if (current) {
             await historyRef.child(key).update({
-                clickCount: (current.clickCount || 1) + 1
+                viewCount: (current.viewCount || 1) + 1
             });
         }
     }
 
     /**
-     * Fetch benefits from the API
+     * Update URL with query parameter
      */
-    async function fetchBenefits(query) {
+    function updateURL(query) {
+        const url = new URL(window.location);
+        url.searchParams.set('q', query);
+        window.history.replaceState({}, '', url);
+    }
+
+    /**
+     * Get query from URL
+     */
+    function getQueryFromURL() {
+        const url = new URL(window.location);
+        return url.searchParams.get('q');
+    }
+
+    /**
+     * Copy share link to clipboard
+     */
+    async function copyShareLink() {
+        const url = window.location.href;
+        try {
+            await navigator.clipboard.writeText(url);
+            shareLink.textContent = 'COPIED!';
+            setTimeout(() => {
+                shareLink.textContent = 'SHARE LINK';
+            }, 2000);
+        } catch (error) {
+            // Fallback for older browsers
+            const input = document.createElement('input');
+            input.value = url;
+            document.body.appendChild(input);
+            input.select();
+            document.execCommand('copy');
+            document.body.removeChild(input);
+            shareLink.textContent = 'COPIED!';
+            setTimeout(() => {
+                shareLink.textContent = 'SHARE LINK';
+            }, 2000);
+        }
+    }
+
+    /**
+     * Fetch benefits from the API (for new searches)
+     */
+    async function fetchBenefits(query, fromHistory = false) {
         showSection(loadingSection);
         const normalizedQuery = normalizeQuery(query);
 
@@ -158,8 +202,11 @@
                     query: query,
                     cached: true
                 });
-                // Still save to history (updates timestamp/count)
-                await saveToHistory(query, normalizedQuery);
+                // Only save to history if this is a new search (not from clicking history)
+                if (!fromHistory) {
+                    await saveToHistory(query, normalizedQuery);
+                }
+                updateURL(query);
                 return;
             }
 
@@ -177,9 +224,12 @@
             }
 
             renderResults(data);
+            updateURL(query);
 
-            // Save to history
-            await saveToHistory(query, normalizedQuery);
+            // Only save to history if this is a new search
+            if (!fromHistory) {
+                await saveToHistory(query, normalizedQuery);
+            }
 
         } catch (error) {
             console.error('Error:', error);
@@ -247,13 +297,12 @@
 
         // Build HTML
         const html = entries.map(([key, item]) => {
-            const count = item.clickCount || 1;
+            const count = item.viewCount || 1;
             const countText = count === 1 ? '1 view' : `${count} views`;
             return `
                 <div class="history-item" data-key="${key}" data-query="${escapeHtml(item.query)}">
                     <span class="history-prompt">&gt;</span>
                     <span class="history-query">${escapeHtml(item.query)}</span>
-                    <span class="history-dots">···</span>
                     <span class="history-count">(${countText})</span>
                 </div>
             `;
@@ -275,17 +324,17 @@
     }
 
     /**
-     * Handle click on history item
+     * Handle click on history item - just view, don't update timestamp
      */
     async function handleHistoryClick(key, query) {
         queryInput.value = query;
         lastQuery = query;
 
-        // Increment click count
-        await incrementHistoryClick(key);
+        // Increment view count (but don't update timestamp - keeps sort order)
+        await incrementViewCount(key);
 
-        // Fetch (will use cache)
-        fetchBenefits(query);
+        // Fetch with fromHistory=true so it doesn't save to history again
+        fetchBenefits(query, true);
     }
 
     /**
@@ -314,7 +363,7 @@
         }
 
         lastQuery = query;
-        fetchBenefits(query);
+        fetchBenefits(query, false);
     }
 
     /**
@@ -334,12 +383,17 @@
         // Retry button
         retryBtn.addEventListener('click', () => {
             if (lastQuery) {
-                fetchBenefits(lastQuery);
+                fetchBenefits(lastQuery, false);
             } else {
                 showSection(null);
                 queryInput.focus();
             }
         });
+
+        // Share link button
+        if (shareLink) {
+            shareLink.addEventListener('click', copyShareLink);
+        }
     }
 
     /**
@@ -348,7 +402,16 @@
     function init() {
         initFirebase();
         initEventListeners();
-        queryInput.focus();
+
+        // Check for query in URL
+        const urlQuery = getQueryFromURL();
+        if (urlQuery) {
+            queryInput.value = urlQuery;
+            lastQuery = urlQuery;
+            fetchBenefits(urlQuery, true); // fromHistory=true so it doesn't duplicate
+        } else {
+            queryInput.focus();
+        }
     }
 
     // Start when DOM is ready
