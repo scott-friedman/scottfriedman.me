@@ -439,7 +439,14 @@ async function callGeminiForExpansion(env, query, benefit) {
 
     const prompt = `Regarding "${query}", someone claims: "${benefit}"
 
-Explain why this is true in 2-3 sentences. Be specific and cite evidence or reasoning where possible. Keep it concise but informative.`;
+Your task: Explain why this is true. Be specific and cite evidence or reasoning where possible.
+
+Important: Adjust your explanation length based on how much the claim actually needs explaining:
+- If the benefit is obvious or self-explanatory, give a brief 1-sentence confirmation
+- If moderately complex, provide 2-3 sentences
+- If the benefit is counter-intuitive, technical, or requires significant justification, provide up to 4 sentences
+
+Do NOT pad simple claims with unnecessary elaboration. Match the depth of explanation to the actual complexity of the claim.`;
 
     try {
         const response = await fetch(`${GEMINI_URL}?key=${env.GEMINI_API_KEY}`, {

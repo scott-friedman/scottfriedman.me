@@ -49,6 +49,7 @@
     let selectedBenefitIndex = -1;
     let isLoadingMore = false;
     let isLoadingReally = false;
+    let expansionCache = {}; // Cache for benefit expansions keyed by "query::benefit"
 
     /**
      * Initialize Firebase
@@ -283,12 +284,28 @@
     }
 
     /**
+     * Generate cache key for expansion
+     */
+    function getExpansionKey(query, benefit) {
+        return `${normalizeQuery(query)}::${benefit.toLowerCase().trim()}`;
+    }
+
+    /**
+     * Check if a benefit has a cached expansion
+     */
+    function hasExpansion(benefit) {
+        const key = getExpansionKey(lastQuery, benefit);
+        return !!expansionCache[key];
+    }
+
+    /**
      * Render the benefits list with click handlers
      */
     function renderBenefitsList() {
-        benefitsList.innerHTML = currentBenefits.map((benefit, index) =>
-            `<li data-index="${index}">${escapeHtml(benefit)}</li>`
-        ).join('');
+        benefitsList.innerHTML = currentBenefits.map((benefit, index) => {
+            const hasExp = hasExpansion(benefit);
+            return `<li data-index="${index}"${hasExp ? ' class="has-expansion"' : ''}>${escapeHtml(benefit)}${hasExp ? '<span class="expansion-indicator"></span>' : ''}</li>`;
+        }).join('');
 
         // Add click handlers to each benefit
         benefitsList.querySelectorAll('li').forEach(li => {
@@ -382,6 +399,13 @@
         const selectedBenefit = currentBenefits[selectedBenefitIndex];
         if (!selectedBenefit) return;
 
+        // Check cache first
+        const cacheKey = getExpansionKey(lastQuery, selectedBenefit);
+        if (expansionCache[cacheKey]) {
+            showExpansion(expansionCache[cacheKey], true);
+            return;
+        }
+
         isLoadingReally = true;
         const originalText = reallyBtn.textContent;
         reallyBtn.textContent = 'LOADING...';
@@ -404,11 +428,18 @@
             }
 
             if (data.expansion) {
-                reallyExpansion.innerHTML = `
-                    <div class="expansion-label">EXPANDED:</div>
-                    <p>${escapeHtml(data.expansion)}</p>
-                `;
-                reallyExpansion.classList.remove('hidden');
+                // Cache the expansion
+                expansionCache[cacheKey] = data.expansion;
+                showExpansion(data.expansion, false);
+
+                // Update the list to show indicator on this benefit
+                renderBenefitsList();
+
+                // Re-select the same benefit (since we re-rendered)
+                const li = benefitsList.querySelector(`li[data-index="${selectedBenefitIndex}"]`);
+                if (li) {
+                    li.classList.add('selected');
+                }
             }
 
         } catch (error) {
@@ -418,6 +449,17 @@
             reallyBtn.textContent = originalText;
             reallyBtn.disabled = false;
         }
+    }
+
+    /**
+     * Show expansion content
+     */
+    function showExpansion(expansion, fromCache) {
+        reallyExpansion.innerHTML = `
+            <div class="expansion-label">EXPANDED:${fromCache ? ' <span class="from-cache">FROM CACHE</span>' : ''}</div>
+            <p>${escapeHtml(expansion)}</p>
+        `;
+        reallyExpansion.classList.remove('hidden');
     }
 
     /**
