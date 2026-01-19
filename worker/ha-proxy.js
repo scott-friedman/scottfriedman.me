@@ -12,9 +12,16 @@
  * Deploy: wrangler deploy
  */
 
+// Environment detection
+const IS_PRODUCTION = true; // Set to false for local development
+
 // CORS headers for your domain
-// Note: Also allows localhost for testing - remove in production if desired
-const ALLOWED_ORIGINS = [
+// SECURITY: Localhost origins only allowed in development
+const ALLOWED_ORIGINS_PROD = [
+    'https://scottfriedman.ooo'
+];
+
+const ALLOWED_ORIGINS_DEV = [
     'https://scottfriedman.ooo',
     'http://localhost:8000',
     'http://127.0.0.1:8000'
@@ -22,7 +29,8 @@ const ALLOWED_ORIGINS = [
 
 function getCorsHeaders(request) {
     const origin = request.headers.get('Origin') || '';
-    const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+    const allowedOrigins = IS_PRODUCTION ? ALLOWED_ORIGINS_PROD : ALLOWED_ORIGINS_DEV;
+    const allowedOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
     return {
         'Access-Control-Allow-Origin': allowedOrigin,
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -33,6 +41,40 @@ function getCorsHeaders(request) {
 
 // Allowed actions (whitelist)
 const ALLOWED_ACTIONS = ['turn_on', 'turn_off', 'set_percentage', 'media_play', 'media_pause'];
+
+// Rate limiting for control actions (prevent abuse)
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const RATE_LIMIT_MAX_CONTROLS = 20; // 20 control actions per minute per IP
+
+/**
+ * Check rate limit for control actions
+ */
+function checkRateLimit(ip) {
+    const now = Date.now();
+    const entry = rateLimitMap.get(ip);
+
+    // Cleanup old entries periodically
+    if (rateLimitMap.size > 1000) {
+        for (const [key, val] of rateLimitMap.entries()) {
+            if (now - val.timestamp > RATE_LIMIT_WINDOW * 2) {
+                rateLimitMap.delete(key);
+            }
+        }
+    }
+
+    if (!entry || now - entry.timestamp > RATE_LIMIT_WINDOW) {
+        rateLimitMap.set(ip, { count: 1, timestamp: now });
+        return true;
+    }
+
+    if (entry.count >= RATE_LIMIT_MAX_CONTROLS) {
+        return false;
+    }
+
+    entry.count++;
+    return true;
+}
 
 export default {
     async fetch(request, env, ctx) {
@@ -266,6 +308,14 @@ async function handleGetState(env, corsHeaders) {
  * Optional params for set_percentage: percentage (0-100)
  */
 async function handleControl(request, env, corsHeaders) {
+    // Rate limiting
+    const clientIP = request.headers.get('CF-Connecting-IP') || 'unknown';
+    if (!checkRateLimit(clientIP)) {
+        return jsonResponse({
+            error: 'Rate limit exceeded. Please slow down.'
+        }, 429, corsHeaders);
+    }
+
     // Check if enabled
     const enabled = await checkEnabled(env);
     if (!enabled) {

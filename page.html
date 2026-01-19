@@ -114,6 +114,8 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
+    <!-- Security: HTML Sanitization -->
+    <script src="js/sanitize.js"></script>
     <script src="js/main.js"></script>
     <script>
         // Load page content from Firebase
@@ -121,7 +123,8 @@
             const params = new URLSearchParams(window.location.search);
             const slug = params.get('p');
 
-            if (!slug) {
+            // Validate slug format (alphanumeric and hyphens only)
+            if (!slug || !/^[a-zA-Z0-9-]+$/.test(slug)) {
                 showNotFound();
                 return;
             }
@@ -146,11 +149,20 @@
                     return;
                 }
 
-                document.getElementById('page-title').textContent = page.title;
+                // Sanitize title (plain text)
+                const escapeHtml = window.Sanitize ? window.Sanitize.escapeHtml : (s) => s;
+                document.getElementById('page-title').textContent = page.title || 'Untitled';
                 document.getElementById('page-title').classList.remove('loading');
-                document.getElementById('page-content').innerHTML = page.content || '<p>No content yet.</p>';
-                document.title = page.title + ' - Scott Friedman';
-            }).catch(() => {
+
+                // Sanitize content (allows safe HTML tags)
+                const sanitizeHtml = window.Sanitize ? window.Sanitize.sanitizeHtml : (s) => escapeHtml(s);
+                const safeContent = page.content ? sanitizeHtml(page.content) : '<p>No content yet.</p>';
+                document.getElementById('page-content').innerHTML = safeContent;
+
+                // Sanitize title for document.title
+                document.title = escapeHtml(page.title || 'Page') + ' - Scott Friedman';
+            }).catch((error) => {
+                console.error('Error loading page:', error);
                 showNotFound();
             });
 

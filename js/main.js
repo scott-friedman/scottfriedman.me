@@ -571,26 +571,33 @@
         const { title, type, url, artist } = sound;
         let embedHtml = '';
 
-        // Build the title/artist header
+        // Sanitize the embed URL based on type
+        const safeUrl = window.Sanitize ? window.Sanitize.sanitizeEmbedUrl(url, type) : '';
+        if (!safeUrl && type !== 'audio') {
+            return ''; // Skip invalid embed URLs
+        }
+
+        // Build the title/artist header with escaped content
         let header = '';
+        const escapeHtml = window.Sanitize ? window.Sanitize.escapeHtml : (s) => s;
         if (title || artist) {
             header = `<div class="sound-info">`;
-            if (title) header += `<span class="sound-title">${title}</span>`;
-            if (artist) header += `<span class="sound-artist">${artist}</span>`;
+            if (title) header += `<span class="sound-title">${escapeHtml(title)}</span>`;
+            if (artist) header += `<span class="sound-artist">${escapeHtml(artist)}</span>`;
             header += `</div>`;
         }
 
         switch (type) {
             case 'mixcloud':
             case 'bandcamp':
-                embedHtml = `<iframe width="100%" height="120" src="${url}" frameborder="0" allow="autoplay"></iframe>`;
+                embedHtml = `<iframe width="100%" height="120" src="${escapeHtml(safeUrl)}" frameborder="0" allow="autoplay"></iframe>`;
                 break;
 
             case 'dropbox':
                 // Convert Dropbox share link to direct link
-                let directUrl = url;
-                if (url.includes('dropbox.com') || url.includes('dropboxusercontent.com')) {
-                    directUrl = url
+                let directUrl = safeUrl;
+                if (safeUrl.includes('dropbox.com') || safeUrl.includes('dropboxusercontent.com')) {
+                    directUrl = safeUrl
                         .replace('www.dropbox.com', 'dl.dropboxusercontent.com')
                         .replace('&dl=0', '&dl=1')
                         .replace('?dl=0', '?dl=1');
@@ -609,15 +616,19 @@
                     'aac': 'audio/aac'
                 };
                 const mimeType = mimeTypes[ext] || 'audio/mpeg';
-                embedHtml = `<audio controls preload="metadata"><source src="${directUrl}" type="${mimeType}">Your browser does not support audio.</audio>`;
+                embedHtml = `<audio controls preload="metadata"><source src="${escapeHtml(directUrl)}" type="${mimeType}">Your browser does not support audio.</audio>`;
                 break;
 
             case 'audio':
-                embedHtml = `<audio controls preload="metadata"><source src="${url}">Your browser does not support audio.</audio>`;
+                // Validate audio URL
+                const safeAudioUrl = window.Sanitize ? window.Sanitize.sanitizeUrl(url) : url;
+                if (!safeAudioUrl) return '';
+                embedHtml = `<audio controls preload="metadata"><source src="${escapeHtml(safeAudioUrl)}">Your browser does not support audio.</audio>`;
                 break;
 
             default:
-                embedHtml = `<iframe width="100%" height="120" src="${url}" frameborder="0"></iframe>`;
+                // Unknown type - skip for security
+                return '';
         }
 
         return `<div class="sound-embed">${header}${embedHtml}</div>`;
@@ -702,12 +713,16 @@
                 reorderSections(content.sectionOrder);
             }
 
+            // Sanitization helper
+            const escapeHtml = window.Sanitize ? window.Sanitize.escapeHtml : (s) => s;
+            const sanitizeUrl = window.Sanitize ? window.Sanitize.sanitizeUrl : (s) => s;
+
             // Load Intro section
             if (content.about) {
                 const aboutEl = document.getElementById('intro-content');
                 if (aboutEl && content.about.paragraphs) {
                     aboutEl.innerHTML = content.about.paragraphs
-                        .map(p => `<p>${p}</p>`)
+                        .map(p => `<p>${escapeHtml(p)}</p>`)
                         .join('');
                 }
             }
@@ -720,12 +735,15 @@
                         .map(p => {
                             // Check if link is internal (page slug) or external (URL)
                             const link = p.link || '#';
-                            const href = link.startsWith('http') || link.startsWith('#')
-                                ? link
-                                : `page.html?p=${link}`;
-                            const target = link.startsWith('http') ? ' target="_blank"' : '';
-                            return `<li><a href="${href}"${target}>${p.title}</a><span class="desc">— ${p.desc}</span></li>`;
+                            const safeLink = sanitizeUrl(link);
+                            if (!safeLink) return ''; // Skip items with unsafe URLs
+                            const href = safeLink.startsWith('http') || safeLink.startsWith('#')
+                                ? safeLink
+                                : `page.html?p=${encodeURIComponent(safeLink)}`;
+                            const target = safeLink.startsWith('http') ? ' target="_blank" rel="noopener noreferrer"' : '';
+                            return `<li><a href="${escapeHtml(href)}"${target}>${escapeHtml(p.title)}</a><span class="desc">— ${escapeHtml(p.desc)}</span></li>`;
                         })
+                        .filter(Boolean)
                         .join('');
                 }
             }
@@ -738,12 +756,15 @@
                         .map(w => {
                             // Check if link is internal (page slug) or external (URL)
                             const link = w.link || '#';
-                            const href = link.startsWith('http') || link.startsWith('#')
-                                ? link
-                                : `page.html?p=${link}`;
-                            const target = link.startsWith('http') ? ' target="_blank"' : '';
-                            return `<li><span class="date">${w.date}</span><a href="${href}"${target}>${w.title}</a></li>`;
+                            const safeLink = sanitizeUrl(link);
+                            if (!safeLink) return ''; // Skip items with unsafe URLs
+                            const href = safeLink.startsWith('http') || safeLink.startsWith('#')
+                                ? safeLink
+                                : `page.html?p=${encodeURIComponent(safeLink)}`;
+                            const target = safeLink.startsWith('http') ? ' target="_blank" rel="noopener noreferrer"' : '';
+                            return `<li><span class="date">${escapeHtml(w.date)}</span><a href="${escapeHtml(href)}"${target}>${escapeHtml(w.title)}</a></li>`;
                         })
+                        .filter(Boolean)
                         .join('');
                 }
             }
@@ -770,12 +791,16 @@
                     contactEl.innerHTML = content.contact
                         .map(c => {
                             // Check if link is internal (page slug) or external (URL)
-                            const href = c.url.startsWith('http') || c.url.startsWith('#') || c.url.startsWith('mailto:')
-                                ? c.url
-                                : `page.html?p=${c.url}`;
-                            const target = c.url.startsWith('http') ? ' target="_blank"' : '';
-                            return `<li><a href="${href}"${target}>${c.name}</a></li>`;
+                            const url = c.url || '#';
+                            const safeUrl = sanitizeUrl(url);
+                            if (!safeUrl) return ''; // Skip items with unsafe URLs
+                            const href = safeUrl.startsWith('http') || safeUrl.startsWith('#') || safeUrl.startsWith('mailto:')
+                                ? safeUrl
+                                : `page.html?p=${encodeURIComponent(safeUrl)}`;
+                            const target = safeUrl.startsWith('http') ? ' target="_blank" rel="noopener noreferrer"' : '';
+                            return `<li><a href="${escapeHtml(href)}"${target}>${escapeHtml(c.name)}</a></li>`;
                         })
+                        .filter(Boolean)
                         .join('');
                 }
             }

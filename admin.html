@@ -306,11 +306,29 @@
     <!-- Login Screen -->
     <div id="login-screen">
         <h1>Admin Login</h1>
-        <p class="subtitle">Enter your password to manage content</p>
-        <input type="password" id="password-input" placeholder="Password" autofocus>
+        <p class="subtitle">Sign in with your admin account</p>
+        <input type="email" id="email-input" placeholder="Email" autofocus>
+        <input type="password" id="password-input" placeholder="Password">
         <br>
-        <button onclick="login()">Login</button>
+        <button onclick="login()" id="login-btn">Login</button>
         <p id="login-error" class="error"></p>
+        <p style="margin-top: 1rem; font-size: 0.8rem; color: #999;">
+            First time? <a href="#" onclick="showSetupInstructions(); return false;">Setup instructions</a>
+        </p>
+        <div id="setup-instructions" style="display: none; margin-top: 1rem; text-align: left; background: #fff; padding: 1rem; border-radius: 8px; max-width: 400px; margin-left: auto; margin-right: auto;">
+            <h3 style="margin-bottom: 0.5rem;">Initial Setup</h3>
+            <ol style="font-size: 0.85rem; color: #666; padding-left: 1.2rem;">
+                <li>Go to <a href="https://console.firebase.google.com" target="_blank">Firebase Console</a></li>
+                <li>Select your project (scottfriedman-f400d)</li>
+                <li>Go to Authentication → Sign-in method</li>
+                <li>Enable Email/Password provider</li>
+                <li>Go to Authentication → Users → Add user</li>
+                <li>Add your email and a strong password</li>
+                <li>Copy your User UID</li>
+                <li>Go to Realtime Database → Add this entry:<br>
+                    <code style="background: #f5f5f5; padding: 0.2rem 0.4rem; border-radius: 4px;">admins/YOUR_UID: true</code></li>
+            </ol>
+        </div>
     </div>
 
     <!-- Admin Panel -->
@@ -438,6 +456,7 @@ You can use HTML tags like:
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
     <script>
@@ -451,23 +470,73 @@ You can use HTML tags like:
             appId: "1:1046658110090:web:49a24a0ff13b19cb111373"
         };
 
-        const PASSWORD = atob('cWpuTmdraTFST25E');
-
         firebase.initializeApp(FIREBASE_CONFIG);
         const db = firebase.database();
+        const auth = firebase.auth();
 
-        // Auth
-        function login() {
-            if (document.getElementById('password-input').value === PASSWORD) {
-                localStorage.setItem('admin_auth', 'true');
-                showAdmin();
-            } else {
-                document.getElementById('login-error').textContent = 'Wrong password';
+        // Current user state
+        let currentUser = null;
+
+        // Show setup instructions
+        function showSetupInstructions() {
+            const el = document.getElementById('setup-instructions');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // Auth - Firebase Authentication
+        async function login() {
+            const email = document.getElementById('email-input').value.trim();
+            const password = document.getElementById('password-input').value;
+            const errorEl = document.getElementById('login-error');
+            const loginBtn = document.getElementById('login-btn');
+
+            if (!email || !password) {
+                errorEl.textContent = 'Please enter email and password';
+                return;
+            }
+
+            errorEl.textContent = '';
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Signing in...';
+
+            try {
+                const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                // Check if user is in admins list
+                const adminSnapshot = await db.ref('admins/' + userCredential.user.uid).once('value');
+                if (!adminSnapshot.exists() || adminSnapshot.val() !== true) {
+                    await auth.signOut();
+                    errorEl.textContent = 'You are not authorized as an admin';
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = 'Login';
+                    return;
+                }
+                // Auth state listener will handle showing admin panel
+            } catch (error) {
+                console.error('Login error:', error);
+                let message = 'Login failed';
+                if (error.code === 'auth/user-not-found') {
+                    message = 'No account found with this email';
+                } else if (error.code === 'auth/wrong-password') {
+                    message = 'Incorrect password';
+                } else if (error.code === 'auth/invalid-email') {
+                    message = 'Invalid email address';
+                } else if (error.code === 'auth/too-many-requests') {
+                    message = 'Too many attempts. Try again later.';
+                }
+                errorEl.textContent = message;
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'Login';
             }
         }
 
-        function logout() {
-            localStorage.removeItem('admin_auth');
+        async function logout() {
+            try {
+                await auth.signOut();
+                // Clear any cached admin state
+                localStorage.removeItem('admin_auth');
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
             location.reload();
         }
 
@@ -480,11 +549,46 @@ You can use HTML tags like:
             loadCommandCenter();
         }
 
+        function showLogin() {
+            document.getElementById('login-screen').style.display = 'block';
+            document.getElementById('admin-panel').style.display = 'none';
+            document.getElementById('save-bar').style.display = 'none';
+        }
+
+        // Listen for auth state changes
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                // Verify user is admin
+                try {
+                    const adminSnapshot = await db.ref('admins/' + user.uid).once('value');
+                    if (adminSnapshot.exists() && adminSnapshot.val() === true) {
+                        currentUser = user;
+                        localStorage.setItem('admin_auth', 'true'); // For stickynotes.js admin check
+                        showAdmin();
+                    } else {
+                        // Not an admin, sign out
+                        await auth.signOut();
+                        localStorage.removeItem('admin_auth');
+                        showLogin();
+                    }
+                } catch (error) {
+                    console.error('Admin check failed:', error);
+                    showLogin();
+                }
+            } else {
+                currentUser = null;
+                localStorage.removeItem('admin_auth');
+                showLogin();
+            }
+        });
+
+        // Handle Enter key on inputs
+        document.getElementById('email-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') document.getElementById('password-input').focus();
+        });
         document.getElementById('password-input').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') login();
         });
-
-        if (localStorage.getItem('admin_auth') === 'true') showAdmin();
 
         // Tabs
         function showTab(tab) {
