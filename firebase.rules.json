@@ -153,8 +153,10 @@
     // ADMIN CONFIG - Never publicly accessible
     // ========================================
     "admins": {
-      ".read": false,
-      ".write": false
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": false
+      }
     },
     "admin_config": {
       ".read": "auth != null && root.child('admins').child(auth.uid).exists()",

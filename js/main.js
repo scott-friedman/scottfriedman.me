@@ -740,7 +740,7 @@
                             const href = safeLink.startsWith('http') || safeLink.startsWith('#')
                                 ? safeLink
                                 : `page.html?p=${encodeURIComponent(safeLink)}`;
-                            const target = safeLink.startsWith('http') ? ' target="_blank" rel="noopener noreferrer"' : '';
+                            const target = '';
                             return `<li><a href="${escapeHtml(href)}"${target}>${escapeHtml(p.title)}</a><span class="desc">— ${escapeHtml(p.desc)}</span></li>`;
                         })
                         .filter(Boolean)
@@ -761,7 +761,7 @@
                             const href = safeLink.startsWith('http') || safeLink.startsWith('#')
                                 ? safeLink
                                 : `page.html?p=${encodeURIComponent(safeLink)}`;
-                            const target = safeLink.startsWith('http') ? ' target="_blank" rel="noopener noreferrer"' : '';
+                            const target = '';
                             return `<li><span class="date">${escapeHtml(w.date)}</span><a href="${escapeHtml(href)}"${target}>${escapeHtml(w.title)}</a></li>`;
                         })
                         .filter(Boolean)
