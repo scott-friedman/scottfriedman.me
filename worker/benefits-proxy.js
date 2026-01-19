@@ -7,13 +7,24 @@
  * Environment Variables (set via wrangler secret):
  * - GEMINI_API_KEY: Google AI Studio API key
  *
+ * Optional KV Namespace (for persistent rate limiting):
+ * - RATE_LIMIT_KV: KV namespace for rate limit counters
+ *
  * Deploy: npx wrangler deploy --config wrangler-benefits.toml
  */
 
 const FIREBASE_URL = 'https://scottfriedman-f400d-default-rtdb.firebaseio.com';
 
+// Environment detection
+const IS_PRODUCTION = true; // Set to false for local development
+
 // CORS headers for your domain
-const ALLOWED_ORIGINS = [
+// SECURITY: Remove localhost in production to prevent CORS bypass attacks
+const ALLOWED_ORIGINS_PROD = [
+    'https://scottfriedman.ooo'
+];
+
+const ALLOWED_ORIGINS_DEV = [
     'https://scottfriedman.ooo',
     'http://localhost:8000',
     'http://localhost:8001',
@@ -23,7 +34,8 @@ const ALLOWED_ORIGINS = [
 
 function getCorsHeaders(request) {
     const origin = request.headers.get('Origin') || '';
-    const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+    const allowedOrigins = IS_PRODUCTION ? ALLOWED_ORIGINS_PROD : ALLOWED_ORIGINS_DEV;
+    const allowedOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
     return {
         'Access-Control-Allow-Origin': allowedOrigin,
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -32,26 +44,86 @@ function getCorsHeaders(request) {
     };
 }
 
-// Rate limiting: simple in-memory counter (resets on worker restart)
-const rateLimitMap = new Map();
+// Rate limiting configuration
 const RATE_LIMIT_WINDOW = 60000; // 1 minute
-const RATE_LIMIT_MAX = 10; // 10 requests per minute per IP
+const RATE_LIMIT_MAX_PER_MINUTE = 5; // 5 requests per minute per IP (reduced from 10)
+const RATE_LIMIT_MAX_PER_HOUR = 30; // 30 requests per hour per IP
+const DAILY_BUDGET_LIMIT = 500; // Max API calls per day (safety net)
 
-function checkRateLimit(ip) {
+// In-memory rate limiting (fallback, resets on worker restart)
+const rateLimitMap = new Map();
+const hourlyLimitMap = new Map();
+let dailyApiCalls = 0;
+let dailyResetTime = Date.now();
+
+/**
+ * Check rate limit for an IP address
+ * Uses in-memory counters with multiple time windows
+ */
+function checkRateLimit(ip, env) {
     const now = Date.now();
-    const entry = rateLimitMap.get(ip);
 
-    if (!entry || now - entry.timestamp > RATE_LIMIT_WINDOW) {
-        rateLimitMap.set(ip, { count: 1, timestamp: now });
-        return true;
+    // Reset daily counter at midnight UTC
+    const today = new Date().toDateString();
+    if (new Date(dailyResetTime).toDateString() !== today) {
+        dailyApiCalls = 0;
+        dailyResetTime = now;
     }
 
-    if (entry.count >= RATE_LIMIT_MAX) {
-        return false;
+    // Check daily budget
+    if (dailyApiCalls >= DAILY_BUDGET_LIMIT) {
+        console.log(`Daily budget exceeded: ${dailyApiCalls}/${DAILY_BUDGET_LIMIT}`);
+        return { allowed: false, reason: 'daily_limit' };
     }
 
-    entry.count++;
-    return true;
+    // Per-minute rate limiting
+    const minuteKey = `${ip}_minute`;
+    const minuteEntry = rateLimitMap.get(minuteKey);
+    if (!minuteEntry || now - minuteEntry.timestamp > RATE_LIMIT_WINDOW) {
+        rateLimitMap.set(minuteKey, { count: 1, timestamp: now });
+    } else if (minuteEntry.count >= RATE_LIMIT_MAX_PER_MINUTE) {
+        return { allowed: false, reason: 'minute_limit' };
+    } else {
+        minuteEntry.count++;
+    }
+
+    // Per-hour rate limiting
+    const hourKey = `${ip}_hour`;
+    const hourEntry = hourlyLimitMap.get(hourKey);
+    const hourWindow = 3600000; // 1 hour
+    if (!hourEntry || now - hourEntry.timestamp > hourWindow) {
+        hourlyLimitMap.set(hourKey, { count: 1, timestamp: now });
+    } else if (hourEntry.count >= RATE_LIMIT_MAX_PER_HOUR) {
+        return { allowed: false, reason: 'hour_limit' };
+    } else {
+        hourEntry.count++;
+    }
+
+    return { allowed: true };
+}
+
+/**
+ * Increment daily API call counter
+ */
+function incrementDailyCounter() {
+    dailyApiCalls++;
+}
+
+/**
+ * Clean up old rate limit entries periodically
+ */
+function cleanupRateLimits() {
+    const now = Date.now();
+    for (const [key, entry] of rateLimitMap.entries()) {
+        if (now - entry.timestamp > RATE_LIMIT_WINDOW * 2) {
+            rateLimitMap.delete(key);
+        }
+    }
+    for (const [key, entry] of hourlyLimitMap.entries()) {
+        if (now - entry.timestamp > 3600000 * 2) {
+            hourlyLimitMap.delete(key);
+        }
+    }
 }
 
 // Normalize query for caching (lowercase, trim, remove extra spaces)
@@ -113,9 +185,15 @@ export default {
 async function handleBenefits(request, env, corsHeaders) {
     // Rate limiting
     const clientIP = request.headers.get('CF-Connecting-IP') || 'unknown';
-    if (!checkRateLimit(clientIP)) {
+    const rateCheck = checkRateLimit(clientIP, env);
+    if (!rateCheck.allowed) {
+        const messages = {
+            'daily_limit': 'Daily limit reached. Please try again tomorrow.',
+            'hour_limit': 'Hourly limit exceeded. Please try again later.',
+            'minute_limit': 'Rate limit exceeded. Please try again in a minute.'
+        };
         return jsonResponse({
-            error: 'Rate limit exceeded. Please try again in a minute.'
+            error: messages[rateCheck.reason] || 'Rate limit exceeded.'
         }, 429, corsHeaders);
     }
 
@@ -185,9 +263,15 @@ async function handleBenefits(request, env, corsHeaders) {
 async function handleMoreBenefit(request, env, corsHeaders) {
     // Rate limiting
     const clientIP = request.headers.get('CF-Connecting-IP') || 'unknown';
-    if (!checkRateLimit(clientIP)) {
+    const rateCheck = checkRateLimit(clientIP, env);
+    if (!rateCheck.allowed) {
+        const messages = {
+            'daily_limit': 'Daily limit reached. Please try again tomorrow.',
+            'hour_limit': 'Hourly limit exceeded. Please try again later.',
+            'minute_limit': 'Rate limit exceeded. Please try again in a minute.'
+        };
         return jsonResponse({
-            error: 'Rate limit exceeded. Please try again in a minute.'
+            error: messages[rateCheck.reason] || 'Rate limit exceeded.'
         }, 429, corsHeaders);
     }
 
@@ -221,9 +305,15 @@ async function handleMoreBenefit(request, env, corsHeaders) {
 async function handleExpandBenefit(request, env, corsHeaders) {
     // Rate limiting
     const clientIP = request.headers.get('CF-Connecting-IP') || 'unknown';
-    if (!checkRateLimit(clientIP)) {
+    const rateCheck = checkRateLimit(clientIP, env);
+    if (!rateCheck.allowed) {
+        const messages = {
+            'daily_limit': 'Daily limit reached. Please try again tomorrow.',
+            'hour_limit': 'Hourly limit exceeded. Please try again later.',
+            'minute_limit': 'Rate limit exceeded. Please try again in a minute.'
+        };
         return jsonResponse({
-            error: 'Rate limit exceeded. Please try again in a minute.'
+            error: messages[rateCheck.reason] || 'Rate limit exceeded.'
         }, 429, corsHeaders);
     }
 
@@ -312,6 +402,10 @@ Return JSON only:
 }`;
 
     try {
+        // Track API call for daily budget and cleanup old entries
+        incrementDailyCounter();
+        cleanupRateLimits();
+
         const response = await fetch(`${GEMINI_URL}?key=${env.GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -393,6 +487,9 @@ Rules:
 Return ONLY the benefit text, nothing else.`;
 
     try {
+        // Track API call for daily budget
+        incrementDailyCounter();
+
         const response = await fetch(`${GEMINI_URL}?key=${env.GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -459,6 +556,9 @@ Important: Adjust your explanation length based on how much the claim actually n
 Do NOT pad simple claims with unnecessary elaboration. Match the depth of explanation to the actual complexity of the claim.${avoidRepetitionClause}`;
 
     try {
+        // Track API call for daily budget
+        incrementDailyCounter();
+
         const response = await fetch(`${GEMINI_URL}?key=${env.GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
