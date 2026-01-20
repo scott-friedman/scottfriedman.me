@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-Ink Display | scott friedman</title>
+    <link rel="stylesheet" href="css/eink.css">
+</head>
+<body>
+    <div class="terminal">
+        <header class="terminal-header">
+            <span class="terminal-title">E-INK DISPLAY</span>
+            <a href="index.html" class="back-link">back to home</a>
+        </header>
+
+        <main class="terminal-body">
+            <p class="intro">
+                Send a message or image to the e-ink display on my desk.
+                Submissions are queued and appear within ~30 seconds.
+            </p>
+
+            <div class="divider"></div>
+
+            <!-- Mode Toggle -->
+            <div class="mode-toggle">
+                <button type="button" class="mode-btn active" data-mode="text">TEXT</button>
+                <button type="button" class="mode-btn" data-mode="image">IMAGE</button>
+            </div>
+
+            <form id="submission-form">
+                <!-- Text Mode -->
+                <section id="text-mode" class="mode-section">
+                    <div class="form-group">
+                        <label for="text-content">MESSAGE</label>
+                        <textarea
+                            id="text-content"
+                            name="content"
+                            placeholder="What would you like to display?"
+                            maxlength="280"
+                            rows="4"
+                        ></textarea>
+                        <span class="char-count"><span id="char-current">0</span>/280</span>
+                    </div>
+                </section>
+
+                <!-- Image Mode -->
+                <section id="image-mode" class="mode-section hidden">
+                    <div class="form-group">
+                        <label for="image-input">IMAGE</label>
+                        <div class="file-upload" id="file-upload">
+                            <input
+                                type="file"
+                                id="image-input"
+                                name="image"
+                                accept="image/*"
+                            >
+                            <div class="file-upload-text">
+                                <span class="file-icon">+</span>
+                                <span class="file-label">Click or drag to upload</span>
+                                <span class="file-hint">JPG, PNG, HEIC (max 10MB)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Image Preview -->
+                    <div id="preview-container" class="preview-container hidden">
+                        <div class="preview-header">
+                            <span>PREVIEW (800x480)</span>
+                            <button type="button" id="clear-image" class="clear-btn">CLEAR</button>
+                        </div>
+                        <div class="preview-wrapper">
+                            <img id="preview-image" alt="Preview">
+                        </div>
+                        <div class="preview-info">
+                            <span id="image-size">--</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Author Field (both modes) -->
+                <div class="form-group">
+                    <label for="author-input">YOUR NAME</label>
+                    <input
+                        type="text"
+                        id="author-input"
+                        name="author"
+                        placeholder="Anonymous"
+                        maxlength="50"
+                    >
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" id="submit-btn" class="submit-btn">
+                    <span class="btn-text">SEND TO DISPLAY</span>
+                    <span class="btn-loading hidden">SENDING...</span>
+                </button>
+            </form>
+
+            <!-- Status Messages -->
+            <div id="status-message" class="status-message hidden"></div>
+        </main>
+    </div>
+
+    <!-- Firebase SDK (modular v10+) -->
+    <script type="module" src="js/eink.js"></script>
+</body>
+</html>
