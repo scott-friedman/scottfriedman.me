@@ -1,0 +1,42 @@
+# E-Ink Display Page Progress
+
+## Current Status: Items 1-4 Complete
+
+## Items
+- [x] 1. UI Redesign - Mobile/Desktop Compatible
+- [x] 2. Submission History Browser
+- [x] 3. Add to History Toggle
+- [x] 4. Submission Queue System (client-side structure)
+
+## Work Log
+- Redesigned UI with picture frame visual (wood frame + stand)
+- Added responsive design (mobile 280px, tablet 340px, desktop 400px screen)
+- Instructions moved below frame, controls in separate section
+- Added left/right navigation arrows for history browsing
+- History stored in `inky_history` collection
+- Submit button disabled when viewing history (no resubmissions)
+- Added "Add to history" toggle (checked by default)
+- Submission documents include queue fields (display_after, min_display_until)
+- NOTE: Raspberry Pi polling script needs to respect 3-minute display time
+
+## Firestore Collections
+- `inky_submissions` - Queue for display (with timing fields)
+- `inky_history` - Public browsable history
+
+## Required Firestore Rules
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /inky_submissions/{doc} {
+      allow create: if true;
+      allow read, update, delete: if false;
+    }
+    match /inky_history/{doc} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if false;
+    }
+  }
+}
+```

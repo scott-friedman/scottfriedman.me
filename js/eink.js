@@ -1,10 +1,19 @@
 /**
  * E-Ink Display Submission
- * Handles text and image submissions to Firebase Firestore
+ * Handles text/image submissions, history browsing, and queue management
  */
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getFirestore, collection, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import {
+    getFirestore,
+    collection,
+    addDoc,
+    getDocs,
+    query,
+    orderBy,
+    limit,
+    serverTimestamp
+} from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 // ==========================================================================
 // Firebase Configuration
@@ -18,7 +27,6 @@ const FIREBASE_CONFIG = {
     appId: "1:817484798144:web:8e42f66edae0976d573525"
 };
 
-// Initialize Firebase
 const app = initializeApp(FIREBASE_CONFIG);
 const db = getFirestore(app);
 
@@ -28,7 +36,8 @@ const db = getFirestore(app);
 const MAX_WIDTH = 800;
 const MAX_HEIGHT = 480;
 const JPEG_QUALITY = 0.8;
-const MAX_BASE64_SIZE = 500 * 1024; // 500KB limit for Firestore
+const MAX_BASE64_SIZE = 500 * 1024;
+const MIN_DISPLAY_TIME_MS = 3 * 60 * 1000; // 3 minutes
 
 // ==========================================================================
 // DOM Elements
@@ -38,23 +47,153 @@ const modeButtons = document.querySelectorAll('.mode-btn');
 const textModeSection = document.getElementById('text-mode');
 const imageModeSection = document.getElementById('image-mode');
 const textContent = document.getElementById('text-content');
-const charCurrent = document.getElementById('char-current');
+const charCount = document.getElementById('char-count');
 const imageInput = document.getElementById('image-input');
 const fileUpload = document.getElementById('file-upload');
 const previewContainer = document.getElementById('preview-container');
 const previewImage = document.getElementById('preview-image');
 const clearImageBtn = document.getElementById('clear-image');
 const authorInput = document.getElementById('author-input');
+const addToHistoryCheckbox = document.getElementById('add-to-history');
 const submitBtn = document.getElementById('submit-btn');
 const btnText = submitBtn.querySelector('.btn-text');
 const btnLoading = submitBtn.querySelector('.btn-loading');
 const statusMessage = document.getElementById('status-message');
+
+// History elements
+const inputView = document.getElementById('input-view');
+const historyView = document.getElementById('history-view');
+const historyContent = document.getElementById('history-content');
+const historyMeta = document.getElementById('history-meta');
+const historyIndicator = document.getElementById('history-indicator');
+const historyPosition = document.getElementById('history-position');
+const navPrev = document.getElementById('nav-prev');
+const navNext = document.getElementById('nav-next');
 
 // ==========================================================================
 // State
 // ==========================================================================
 let currentMode = 'text';
 let processedImageBase64 = null;
+let history = [];
+let historyIndex = -1; // -1 means "new submission" mode
+
+// ==========================================================================
+// Initialize
+// ==========================================================================
+async function init() {
+    await loadHistory();
+    updateNavButtons();
+    console.log('E-Ink submission page loaded');
+}
+
+// ==========================================================================
+// History Management
+// ==========================================================================
+async function loadHistory() {
+    try {
+        const q = query(
+            collection(db, 'inky_history'),
+            orderBy('created_at', 'desc'),
+            limit(50)
+        );
+        const snapshot = await getDocs(q);
+        history = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        updateNavButtons();
+    } catch (error) {
+        console.error('Failed to load history:', error);
+        history = [];
+    }
+}
+
+function updateNavButtons() {
+    // Can go back if there's history and we're not at the end
+    navPrev.disabled = history.length === 0 || historyIndex >= history.length - 1;
+    // Can go forward if we're viewing history (not at -1)
+    navNext.disabled = historyIndex < 0;
+
+    // Update indicator
+    if (historyIndex >= 0) {
+        historyPosition.textContent = `Viewing ${historyIndex + 1} of ${history.length}`;
+        historyIndicator.style.opacity = '1';
+    } else {
+        historyPosition.textContent = '';
+        historyIndicator.style.opacity = '0';
+    }
+}
+
+function showHistoryItem(index) {
+    if (index < 0 || index >= history.length) return;
+
+    const item = history[index];
+    historyIndex = index;
+
+    // Switch to history view
+    inputView.classList.add('hidden');
+    historyView.classList.remove('hidden');
+
+    // Show content
+    historyContent.innerHTML = '';
+    if (item.type === 'image') {
+        const img = document.createElement('img');
+        img.src = `data:image/jpeg;base64,${item.content}`;
+        img.alt = 'Historical submission';
+        historyContent.appendChild(img);
+    } else {
+        const textDiv = document.createElement('div');
+        textDiv.className = 'text-content';
+        textDiv.textContent = item.content;
+        historyContent.appendChild(textDiv);
+    }
+
+    // Show meta
+    const date = item.created_at?.toDate?.() || new Date();
+    const dateStr = date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+    });
+    historyMeta.textContent = `${item.author || 'Anonymous'} • ${dateStr}`;
+
+    // Disable form when viewing history
+    submitBtn.disabled = true;
+
+    updateNavButtons();
+}
+
+function showInputView() {
+    historyIndex = -1;
+    historyView.classList.add('hidden');
+    inputView.classList.remove('hidden');
+    submitBtn.disabled = false;
+    updateNavButtons();
+}
+
+// Navigation handlers
+navPrev.addEventListener('click', () => {
+    if (historyIndex === -1) {
+        // Currently on input, go to first history item
+        if (history.length > 0) {
+            showHistoryItem(0);
+        }
+    } else if (historyIndex < history.length - 1) {
+        // Go to older item
+        showHistoryItem(historyIndex + 1);
+    }
+});
+
+navNext.addEventListener('click', () => {
+    if (historyIndex > 0) {
+        // Go to newer item
+        showHistoryItem(historyIndex - 1);
+    } else if (historyIndex === 0) {
+        // Back to input view
+        showInputView();
+    }
+});
 
 // ==========================================================================
 // Mode Toggle
@@ -64,13 +203,15 @@ modeButtons.forEach(btn => {
         const mode = btn.dataset.mode;
         if (mode === currentMode) return;
 
-        currentMode = mode;
+        // Return to input view if viewing history
+        if (historyIndex >= 0) {
+            showInputView();
+        }
 
-        // Update button states
+        currentMode = mode;
         modeButtons.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
 
-        // Show/hide sections
         if (mode === 'text') {
             textModeSection.classList.remove('hidden');
             imageModeSection.classList.add('hidden');
@@ -79,7 +220,6 @@ modeButtons.forEach(btn => {
             imageModeSection.classList.remove('hidden');
         }
 
-        // Clear status
         hideStatus();
     });
 });
@@ -88,27 +228,20 @@ modeButtons.forEach(btn => {
 // Character Count
 // ==========================================================================
 textContent.addEventListener('input', () => {
-    charCurrent.textContent = textContent.value.length;
+    charCount.textContent = `${textContent.value.length}/280`;
 });
 
 // ==========================================================================
 // Image Handling
 // ==========================================================================
-
-/**
- * Resize image to fit within max dimensions and convert to JPEG base64
- */
 function resizeImage(file, maxWidth, maxHeight, quality) {
     return new Promise((resolve, reject) => {
         const img = new Image();
-
         img.onload = () => {
             URL.revokeObjectURL(img.src);
-
             const canvas = document.createElement('canvas');
             let { width, height } = img;
 
-            // Calculate new dimensions maintaining aspect ratio
             if (width > maxWidth || height > maxHeight) {
                 const ratio = Math.min(maxWidth / width, maxHeight / height);
                 width = Math.round(width * ratio);
@@ -117,14 +250,11 @@ function resizeImage(file, maxWidth, maxHeight, quality) {
 
             canvas.width = width;
             canvas.height = height;
-
             const ctx = canvas.getContext('2d');
-            // White background for transparent images
             ctx.fillStyle = '#FFFFFF';
             ctx.fillRect(0, 0, width, height);
             ctx.drawImage(img, 0, 0, width, height);
 
-            // Get base64 without the data URL prefix
             const dataUrl = canvas.toDataURL('image/jpeg', quality);
             const base64 = dataUrl.split(',')[1];
 
@@ -132,27 +262,21 @@ function resizeImage(file, maxWidth, maxHeight, quality) {
                 base64,
                 width,
                 height,
-                size: Math.round(base64.length * 0.75) // Approximate byte size
+                size: Math.round(base64.length * 0.75)
             });
         };
-
         img.onerror = () => {
             URL.revokeObjectURL(img.src);
             reject(new Error('Failed to load image'));
         };
-
         img.src = URL.createObjectURL(file);
     });
 }
 
-/**
- * Progressively reduce quality to fit size limit
- */
 async function processImage(file) {
     let quality = JPEG_QUALITY;
     let result = await resizeImage(file, MAX_WIDTH, MAX_HEIGHT, quality);
 
-    // If still too large, reduce quality progressively
     while (result.size > MAX_BASE64_SIZE && quality > 0.3) {
         quality -= 0.1;
         result = await resizeImage(file, MAX_WIDTH, MAX_HEIGHT, quality);
@@ -165,35 +289,26 @@ async function processImage(file) {
     return result;
 }
 
-/**
- * Handle file selection
- */
 async function handleFileSelect(file) {
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
         showStatus('Please select an image file.', 'error');
         return;
     }
 
-    // Validate file size (10MB max before processing)
     if (file.size > 10 * 1024 * 1024) {
         showStatus('Image too large. Maximum size is 10MB.', 'error');
         return;
     }
 
     try {
-        // Show loading state
         fileUpload.classList.add('hidden');
         previewContainer.classList.remove('hidden');
         previewImage.src = '';
 
-        // Process image
         const result = await processImage(file);
         processedImageBase64 = result.base64;
-
-        // Show preview
         previewImage.src = `data:image/jpeg;base64,${result.base64}`;
 
         hideStatus();
@@ -204,9 +319,6 @@ async function handleFileSelect(file) {
     }
 }
 
-/**
- * Clear selected image
- */
 function clearImage() {
     processedImageBase64 = null;
     imageInput.value = '';
@@ -215,21 +327,10 @@ function clearImage() {
     previewImage.src = '';
 }
 
-/**
- * Format bytes to human readable
- */
-function formatBytes(bytes) {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
-
-// File input change
 imageInput.addEventListener('change', (e) => {
     handleFileSelect(e.target.files[0]);
 });
 
-// Drag and drop
 fileUpload.addEventListener('dragover', (e) => {
     e.preventDefault();
     fileUpload.classList.add('dragover');
@@ -245,7 +346,6 @@ fileUpload.addEventListener('drop', (e) => {
     handleFileSelect(e.dataTransfer.files[0]);
 });
 
-// Clear button
 clearImageBtn.addEventListener('click', clearImage);
 
 // ==========================================================================
@@ -254,10 +354,14 @@ clearImageBtn.addEventListener('click', clearImage);
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
+    // Don't allow submission when viewing history
+    if (historyIndex >= 0) return;
+
     // Validate
+    let content;
     if (currentMode === 'text') {
-        const text = textContent.value.trim();
-        if (!text) {
+        content = textContent.value.trim();
+        if (!content) {
             showStatus('Please enter a message.', 'error');
             return;
         }
@@ -266,35 +370,51 @@ form.addEventListener('submit', async (e) => {
             showStatus('Please select an image.', 'error');
             return;
         }
+        content = processedImageBase64;
     }
 
-    // Get author name
     const author = authorInput.value.trim() || 'Anonymous';
+    const addToHistory = addToHistoryCheckbox.checked;
 
-    // Set loading state
     setLoading(true);
     hideStatus();
 
     try {
-        // Build document
-        const doc = {
+        const timestamp = serverTimestamp();
+
+        // Create submission document with queue timing
+        const submissionDoc = {
             type: currentMode,
-            content: currentMode === 'text' ? textContent.value.trim() : processedImageBase64,
+            content: content,
             author: author,
             status: 'pending',
-            created_at: serverTimestamp()
+            created_at: timestamp,
+            // Queue fields for display timing
+            display_after: null, // Will be set by server or stays null for immediate
+            min_display_until: null // Will be calculated when displayed
         };
 
-        // Submit to Firestore
-        await addDoc(collection(db, 'inky_submissions'), doc);
+        // Submit to queue
+        await addDoc(collection(db, 'inky_submissions'), submissionDoc);
 
-        // Success
-        showStatus('Sent! Your submission will appear on the display in about 30 seconds.', 'success');
+        // Add to history if enabled
+        if (addToHistory) {
+            await addDoc(collection(db, 'inky_history'), {
+                type: currentMode,
+                content: content,
+                author: author,
+                created_at: timestamp
+            });
+            // Reload history
+            await loadHistory();
+        }
+
+        showStatus('Sent! Your submission will appear on the display shortly.', 'success');
 
         // Reset form
         if (currentMode === 'text') {
             textContent.value = '';
-            charCurrent.textContent = '0';
+            charCount.textContent = '0/280';
         } else {
             clearImage();
         }
@@ -327,6 +447,6 @@ function hideStatus() {
 }
 
 // ==========================================================================
-// Initialize
+// Start
 // ==========================================================================
-console.log('E-Ink submission page loaded');
+init();
