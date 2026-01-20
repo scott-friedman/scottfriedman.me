@@ -7,83 +7,123 @@
     <link rel="stylesheet" href="css/eink.css">
 </head>
 <body>
-    <!-- Back link -->
-    <a href="index.html" class="back-link">back to home</a>
+    <a href="index.html" class="back-link">&larr; back to home</a>
 
-    <!-- Instructions Panel -->
-    <aside class="instructions">
-        <h2>Send to Display</h2>
-        <p>Type a message or upload an image to show on my e-ink display.</p>
-        <ul>
-            <li>Text: up to 280 characters</li>
-            <li>Images: auto-resized to 800x480</li>
-            <li>Updates appear in ~30 seconds</li>
-        </ul>
-        <div class="mode-toggle">
-            <button type="button" class="mode-btn active" data-mode="text">TEXT</button>
-            <button type="button" class="mode-btn" data-mode="image">IMAGE</button>
-        </div>
-    </aside>
+    <main class="container">
+        <!-- Picture Frame with Navigation -->
+        <div class="frame-wrapper">
+            <!-- History Navigation - Left -->
+            <button class="nav-arrow nav-prev" id="nav-prev" aria-label="Previous submission" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M15 18l-6-6 6-6"/>
+                </svg>
+            </button>
 
-    <!-- Display Overlay - positioned over the e-ink screen in photo -->
-    <div class="display-overlay">
-        <form id="submission-form">
-            <!-- Text Mode -->
-            <section id="text-mode" class="mode-section">
-                <textarea
-                    id="text-content"
-                    name="content"
-                    placeholder="Type your message here..."
-                    maxlength="280"
-                ></textarea>
-                <div class="input-footer">
-                    <span class="char-count"><span id="char-current">0</span>/280</span>
-                </div>
-            </section>
+            <!-- E-Ink Picture Frame -->
+            <div class="picture-frame">
+                <div class="frame-border">
+                    <div class="frame-screen" id="frame-screen">
+                        <!-- History View (shown when browsing) -->
+                        <div id="history-view" class="screen-content hidden">
+                            <div class="history-content" id="history-content"></div>
+                            <div class="history-meta" id="history-meta"></div>
+                        </div>
 
-            <!-- Image Mode -->
-            <section id="image-mode" class="mode-section hidden">
-                <div class="file-upload" id="file-upload">
-                    <input
-                        type="file"
-                        id="image-input"
-                        name="image"
-                        accept="image/*"
-                    >
-                    <div class="file-upload-text">
-                        <span class="file-icon">+</span>
-                        <span class="file-label">Click or drag image</span>
+                        <!-- Input View (default) -->
+                        <div id="input-view" class="screen-content">
+                            <!-- Text Mode -->
+                            <section id="text-mode" class="mode-section">
+                                <textarea
+                                    id="text-content"
+                                    name="content"
+                                    placeholder="Type your message..."
+                                    maxlength="280"
+                                ></textarea>
+                            </section>
+
+                            <!-- Image Mode -->
+                            <section id="image-mode" class="mode-section hidden">
+                                <div class="file-upload" id="file-upload">
+                                    <input type="file" id="image-input" accept="image/*">
+                                    <div class="file-upload-text">
+                                        <span class="file-icon">+</span>
+                                        <span>Tap to upload image</span>
+                                    </div>
+                                </div>
+                                <div id="preview-container" class="preview-container hidden">
+                                    <img id="preview-image" alt="Preview">
+                                    <button type="button" id="clear-image" class="clear-btn">&times;</button>
+                                </div>
+                            </section>
+                        </div>
                     </div>
                 </div>
-
-                <!-- Image Preview (replaces upload area) -->
-                <div id="preview-container" class="preview-container hidden">
-                    <img id="preview-image" alt="Preview">
-                    <button type="button" id="clear-image" class="clear-btn">&times;</button>
-                </div>
-            </section>
-
-            <!-- Author & Submit Row -->
-            <div class="submit-row">
-                <input
-                    type="text"
-                    id="author-input"
-                    name="author"
-                    placeholder="Your name"
-                    maxlength="50"
-                >
-                <button type="submit" id="submit-btn" class="submit-btn">
-                    <span class="btn-text">SEND</span>
-                    <span class="btn-loading hidden">...</span>
-                </button>
+                <!-- Frame Stand -->
+                <div class="frame-stand"></div>
             </div>
-        </form>
 
-        <!-- Status Messages -->
-        <div id="status-message" class="status-message hidden"></div>
-    </div>
+            <!-- History Navigation - Right -->
+            <button class="nav-arrow nav-next" id="nav-next" aria-label="Next submission" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 18l6-6-6-6"/>
+                </svg>
+            </button>
+        </div>
 
-    <!-- Firebase SDK (modular v10+) -->
+        <!-- History Indicator -->
+        <div class="history-indicator" id="history-indicator">
+            <span id="history-position"></span>
+        </div>
+
+        <!-- Controls Below Frame -->
+        <div class="controls">
+            <!-- Mode Toggle -->
+            <div class="mode-toggle">
+                <button type="button" class="mode-btn active" data-mode="text">Text</button>
+                <button type="button" class="mode-btn" data-mode="image">Image</button>
+            </div>
+
+            <!-- Submission Form -->
+            <form id="submission-form" class="submission-form">
+                <div class="form-row">
+                    <input
+                        type="text"
+                        id="author-input"
+                        placeholder="Your name (optional)"
+                        maxlength="50"
+                    >
+                    <span class="char-count" id="char-count">0/280</span>
+                </div>
+
+                <div class="form-row">
+                    <label class="toggle-label">
+                        <input type="checkbox" id="add-to-history" checked>
+                        <span class="toggle-switch"></span>
+                        <span>Add to history</span>
+                    </label>
+                </div>
+
+                <button type="submit" id="submit-btn" class="submit-btn">
+                    <span class="btn-text">Send to Display</span>
+                    <span class="btn-loading hidden">Sending...</span>
+                </button>
+            </form>
+
+            <!-- Status Message -->
+            <div id="status-message" class="status-message hidden"></div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="instructions">
+            <p>Send a message or image to the e-ink display on my desk. Updates appear in ~30 seconds.</p>
+            <ul>
+                <li>Text messages: up to 280 characters</li>
+                <li>Images: auto-resized to 800&times;480</li>
+                <li>Use arrows to browse past submissions</li>
+            </ul>
+        </div>
+    </main>
+
     <script type="module" src="js/eink.js"></script>
 </body>
 </html>

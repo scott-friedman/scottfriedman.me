@@ -1,0 +1,55 @@
+{
+  "project": "E-Ink Display Submission Page",
+  "version": "2.0",
+  "items": [
+    {
+      "id": 1,
+      "title": "UI Redesign - Mobile/Desktop Compatible",
+      "description": "Redesign interface to work well on mobile and desktop. Should visually look like users are inputting directly onto an e-ink picture frame. Instructions clearly visible underneath.",
+      "status": "complete",
+      "acceptance": [
+        "Responsive design works on mobile (320px+) and desktop",
+        "Visual design resembles e-ink picture frame",
+        "Text and image input modes available",
+        "Instructions clearly visible below the frame"
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Submission History Browser",
+      "description": "Add submission history viewable with left/right arrows on the input screen. When viewed, content appears on the submission screen as if user was submitting it. No resubmissions allowed from history.",
+      "status": "complete",
+      "acceptance": [
+        "Left/right arrows navigate through history",
+        "History content displays in the frame area",
+        "Clear visual indication when viewing history vs new submission",
+        "Resubmit button disabled/hidden when viewing history",
+        "History stored in Firestore and persists across sessions"
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Add to History Toggle",
+      "description": "Toggle option for submissions to control whether they are added to history. On by default, users can deselect.",
+      "status": "complete",
+      "acceptance": [
+        "Toggle visible in submission form",
+        "Default state is ON (add to history)",
+        "Submissions respect toggle state",
+        "Toggle state is clear and accessible"
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Submission Queue System",
+      "description": "Ensure submission queue handles multiple submissions properly. Each submission should be visible on display for at least 3 minutes before showing next one.",
+      "status": "complete",
+      "acceptance": [
+        "Queue system ensures minimum 3-minute display time per submission",
+        "No submissions are missed or skipped",
+        "Multiple rapid submissions are queued properly",
+        "Firestore structure supports queue processing"
+      ]
+    }
+  ]
+}

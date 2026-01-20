@@ -1,13 +1,19 @@
 /* ==========================================================================
-   E-Ink Display Submission - Photo Overlay Design
+   E-Ink Display - Picture Frame Design
    ========================================================================== */
 
 :root {
+    --bg: #0a0a0a;
+    --bg-light: #151515;
     --accent: #00ff88;
     --accent-dim: #00cc6a;
-    --text-dark: #1a1a1a;
-    --text-light: #e0e0e0;
-    --bg-dark: rgba(10, 10, 10, 0.95);
+    --text: #e0e0e0;
+    --text-dim: #888;
+    --frame-wood: #3d2817;
+    --frame-wood-light: #5a3d24;
+    --frame-wood-dark: #2a1a0f;
+    --screen-bg: #f5f5f0;
+    --screen-text: #1a1a1a;
     --error: #ff6b6b;
 }
 
@@ -17,155 +23,102 @@
     padding: 0;
 }
 
-html, body {
-    height: 100%;
-    overflow: hidden;
+html {
+    font-size: 16px;
 }
 
 body {
     font-family: 'SF Mono', 'Monaco', 'Consolas', 'Courier New', monospace;
-    background: url('../assets/eink-template.png') no-repeat center center;
-    background-size: cover;
-    background-color: #1a1a1a;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem;
+    line-height: 1.5;
 }
 
 /* ==========================================================================
-   Back Link
+   Layout
    ========================================================================== */
 .back-link {
-    position: fixed;
-    top: 1.5rem;
-    left: 1.5rem;
-    color: var(--text-light);
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    color: var(--text-dim);
     text-decoration: none;
     font-size: 0.85rem;
-    background: var(--bg-dark);
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    z-index: 100;
-    transition: color 0.2s, background 0.2s;
+    transition: color 0.2s;
 }
 
 .back-link:hover {
     color: var(--accent);
-    background: rgba(0, 255, 136, 0.1);
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 800px;
+    margin-top: 2rem;
 }
 
 /* ==========================================================================
-   Instructions Panel
+   Picture Frame
    ========================================================================== */
-.instructions {
-    position: fixed;
-    top: 50%;
-    right: 3%;
-    transform: translateY(-50%);
-    width: 280px;
-    background: var(--bg-dark);
-    padding: 1.5rem;
-    border-radius: 8px;
-    color: var(--text-light);
-    z-index: 100;
-}
-
-.instructions h2 {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--accent);
-    margin-bottom: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.instructions p {
-    font-size: 0.85rem;
-    line-height: 1.5;
-    margin-bottom: 1rem;
-    color: var(--text-light);
-    opacity: 0.9;
-}
-
-.instructions ul {
-    list-style: none;
-    margin-bottom: 1.25rem;
-    font-size: 0.8rem;
-}
-
-.instructions li {
-    padding: 0.3rem 0;
-    padding-left: 1rem;
-    position: relative;
-    opacity: 0.7;
-}
-
-.instructions li::before {
-    content: '>';
-    position: absolute;
-    left: 0;
-    color: var(--accent);
-}
-
-/* Mode Toggle in Instructions */
-.mode-toggle {
+.frame-wrapper {
     display: flex;
-    gap: 0.5rem;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
 }
 
-.mode-btn {
-    flex: 1;
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: var(--text-light);
-    font-family: inherit;
-    font-size: 0.75rem;
-    padding: 0.5rem;
-    cursor: pointer;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    transition: all 0.2s;
+.picture-frame {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.frame-border {
+    background: linear-gradient(145deg, var(--frame-wood-light), var(--frame-wood), var(--frame-wood-dark));
+    padding: 12px;
     border-radius: 4px;
-    opacity: 0.7;
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.3);
 }
 
-.mode-btn:hover {
-    opacity: 1;
-    border-color: var(--accent-dim);
+.frame-screen {
+    width: 400px;
+    height: 240px;
+    background: var(--screen-bg);
+    position: relative;
+    overflow: hidden;
+    /* E-ink paper texture effect */
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.05);
 }
 
-.mode-btn.active {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #000;
-    opacity: 1;
-}
-
-/* ==========================================================================
-   Display Overlay - Positioned over e-ink screen in photo
-   ========================================================================== */
-.display-overlay {
-    position: fixed;
-    /* Adjust these values to match your photo's display position */
-    top: 26%;
-    left: 24%;
-    width: 36%;
-    aspect-ratio: 800 / 480;
-    max-width: 520px;
-
-    background: rgba(255, 255, 255, 0.97);
-    display: flex;
-    flex-direction: column;
-    padding: 1rem;
-
-    /* Slight transform to match display angle if needed */
-    /* transform: perspective(1000px) rotateY(-2deg); */
+.frame-stand {
+    width: 80px;
+    height: 12px;
+    background: linear-gradient(to bottom, var(--frame-wood-light), var(--frame-wood-dark));
+    border-radius: 0 0 4px 4px;
+    margin-top: -2px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
 /* ==========================================================================
-   Form Styling
+   Screen Content
    ========================================================================== */
-#submission-form {
+.screen-content {
+    position: absolute;
+    inset: 0;
     display: flex;
     flex-direction: column;
-    height: 100%;
 }
 
 .mode-section {
@@ -178,13 +131,14 @@ body {
 #text-mode textarea {
     flex: 1;
     width: 100%;
+    height: 100%;
     background: transparent;
     border: none;
-    color: var(--text-dark);
+    color: var(--screen-text);
     font-family: inherit;
-    font-size: 1.1rem;
-    line-height: 1.5;
-    padding: 0;
+    font-size: 1rem;
+    line-height: 1.6;
+    padding: 1rem;
     resize: none;
 }
 
@@ -196,20 +150,9 @@ body {
     color: #999;
 }
 
-.input-footer {
-    display: flex;
-    justify-content: flex-end;
-}
-
-.char-count {
-    font-size: 0.7rem;
-    color: #999;
-}
-
 /* Image Mode */
 #image-mode {
-    justify-content: center;
-    align-items: center;
+    height: 100%;
 }
 
 .file-upload {
@@ -219,16 +162,12 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    border: 2px dashed #ccc;
-    border-radius: 4px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background 0.2s;
 }
 
-.file-upload:hover,
-.file-upload.dragover {
-    border-color: var(--accent-dim);
-    background: rgba(0, 255, 136, 0.05);
+.file-upload:hover {
+    background: rgba(0, 0, 0, 0.03);
 }
 
 .file-upload input[type="file"] {
@@ -245,18 +184,13 @@ body {
     flex-direction: column;
     align-items: center;
     gap: 0.5rem;
-    pointer-events: none;
     color: #999;
+    font-size: 0.9rem;
 }
 
 .file-icon {
-    font-size: 2.5rem;
-    line-height: 1;
+    font-size: 2rem;
     color: #ccc;
-}
-
-.file-label {
-    font-size: 0.9rem;
 }
 
 /* Image Preview */
@@ -267,7 +201,7 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    background: #f5f5f5;
+    background: var(--screen-bg);
 }
 
 .preview-container img {
@@ -280,13 +214,13 @@ body {
     position: absolute;
     top: 0.5rem;
     right: 0.5rem;
-    width: 24px;
-    height: 24px;
-    background: rgba(0, 0, 0, 0.6);
+    width: 28px;
+    height: 28px;
+    background: rgba(0, 0, 0, 0.7);
     border: none;
     border-radius: 50%;
     color: white;
-    font-size: 1rem;
+    font-size: 1.2rem;
     line-height: 1;
     cursor: pointer;
     transition: background 0.2s;
@@ -296,46 +230,218 @@ body {
     background: var(--error);
 }
 
-/* Submit Row */
-.submit-row {
+/* History View */
+#history-view {
+    padding: 1rem;
+    justify-content: center;
+}
+
+.history-content {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+.history-content img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.history-content .text-content {
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--screen-text);
+    text-align: center;
+    padding: 0.5rem;
+}
+
+.history-meta {
+    font-size: 0.7rem;
+    color: #888;
+    text-align: center;
+    padding-top: 0.5rem;
+    border-top: 1px solid #ddd;
+    margin-top: 0.5rem;
+}
+
+/* ==========================================================================
+   Navigation Arrows
+   ========================================================================== */
+.nav-arrow {
+    width: 44px;
+    height: 44px;
+    background: var(--bg-light);
+    border: 1px solid #333;
+    border-radius: 50%;
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.nav-arrow svg {
+    width: 20px;
+    height: 20px;
+}
+
+.nav-arrow:hover:not(:disabled) {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--bg);
+}
+
+.nav-arrow:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* History Indicator */
+.history-indicator {
+    height: 1.5rem;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-bottom: 1rem;
+}
+
+/* ==========================================================================
+   Controls
+   ========================================================================== */
+.controls {
+    width: 100%;
+    max-width: 424px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Mode Toggle */
+.mode-toggle {
     display: flex;
     gap: 0.5rem;
-    margin-top: 0.75rem;
-    padding-top: 0.75rem;
-    border-top: 1px solid #eee;
 }
 
-.submit-row input[type="text"] {
+.mode-btn {
     flex: 1;
-    background: transparent;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    color: var(--text-dark);
+    background: var(--bg-light);
+    border: 1px solid #333;
+    color: var(--text-dim);
     font-family: inherit;
     font-size: 0.85rem;
-    padding: 0.5rem 0.75rem;
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-radius: 4px;
 }
 
-.submit-row input[type="text"]:focus {
-    outline: none;
+.mode-btn:hover {
     border-color: var(--accent-dim);
+    color: var(--text);
 }
 
-.submit-row input[type="text"]::placeholder {
-    color: #999;
+.mode-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--bg);
 }
 
+/* Form */
+.submission-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.form-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.form-row input[type="text"] {
+    flex: 1;
+    background: var(--bg-light);
+    border: 1px solid #333;
+    border-radius: 4px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.9rem;
+    padding: 0.6rem 0.75rem;
+}
+
+.form-row input[type="text"]:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.form-row input[type="text"]::placeholder {
+    color: var(--text-dim);
+}
+
+.char-count {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+}
+
+/* Toggle Switch */
+.toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+}
+
+.toggle-label input {
+    display: none;
+}
+
+.toggle-switch {
+    width: 40px;
+    height: 22px;
+    background: #333;
+    border-radius: 11px;
+    position: relative;
+    transition: background 0.2s;
+}
+
+.toggle-switch::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    background: var(--text-dim);
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+
+.toggle-label input:checked + .toggle-switch {
+    background: var(--accent);
+}
+
+.toggle-label input:checked + .toggle-switch::after {
+    left: 21px;
+    background: var(--bg);
+}
+
+/* Submit Button */
 .submit-btn {
     background: var(--accent);
     border: none;
-    color: #000;
+    color: var(--bg);
     font-family: inherit;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     font-weight: 600;
-    padding: 0.5rem 1.25rem;
+    padding: 0.75rem 1.5rem;
     cursor: pointer;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
     transition: all 0.2s;
     border-radius: 4px;
 }
@@ -349,34 +455,64 @@ body {
     cursor: not-allowed;
 }
 
-/* ==========================================================================
-   Status Message
-   ========================================================================== */
+/* Status Message */
 .status-message {
-    position: absolute;
-    bottom: -2.5rem;
-    left: 0;
-    right: 0;
-    padding: 0.5rem 1rem;
-    font-size: 0.8rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
     text-align: center;
     border-radius: 4px;
     animation: fadeIn 0.3s ease;
 }
 
 .status-message.success {
-    background: rgba(0, 255, 136, 0.9);
-    color: #000;
+    background: rgba(0, 255, 136, 0.15);
+    border: 1px solid var(--accent);
+    color: var(--accent);
 }
 
 .status-message.error {
-    background: rgba(255, 107, 107, 0.9);
-    color: #fff;
+    background: rgba(255, 107, 107, 0.15);
+    border: 1px solid var(--error);
+    color: var(--error);
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
+    from { opacity: 0; transform: translateY(-5px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+/* ==========================================================================
+   Instructions
+   ========================================================================== */
+.instructions {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: var(--bg-light);
+    border-radius: 8px;
+    width: 100%;
+    max-width: 424px;
+    text-align: center;
+}
+
+.instructions p {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin-bottom: 1rem;
+}
+
+.instructions ul {
+    list-style: none;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+}
+
+.instructions li {
+    padding: 0.25rem 0;
+}
+
+.instructions li::before {
+    content: '• ';
+    color: var(--accent);
 }
 
 /* ==========================================================================
@@ -387,80 +523,104 @@ body {
 }
 
 /* ==========================================================================
-   Responsive - Mobile
+   Responsive
    ========================================================================== */
-@media (max-width: 900px) {
-    body {
-        background-position: center top;
-        overflow: auto;
-    }
-
-    .instructions {
-        position: relative;
-        top: auto;
-        right: auto;
-        transform: none;
-        width: 90%;
-        max-width: 400px;
-        margin: 1rem auto;
-        order: 1;
-    }
-
-    .display-overlay {
-        position: relative;
-        top: auto;
-        left: auto;
-        width: 90%;
-        max-width: 500px;
-        margin: 1rem auto;
-        aspect-ratio: 800 / 480;
-        border-radius: 8px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-        order: 2;
-    }
-
-    .back-link {
-        position: relative;
-        display: block;
-        width: fit-content;
-        margin: 1rem auto;
-        order: 0;
-    }
-
-    body {
-        display: flex;
-        flex-direction: column;
-        padding: 1rem;
-    }
-}
-
 @media (max-width: 500px) {
-    .display-overlay {
+    body {
         padding: 0.75rem;
     }
 
+    .back-link {
+        position: static;
+        margin-bottom: 1rem;
+    }
+
+    .container {
+        margin-top: 0;
+    }
+
+    .frame-wrapper {
+        gap: 0.5rem;
+    }
+
+    .frame-border {
+        padding: 8px;
+    }
+
+    .frame-screen {
+        width: 280px;
+        height: 168px;
+    }
+
+    .frame-stand {
+        width: 60px;
+        height: 10px;
+    }
+
+    .nav-arrow {
+        width: 36px;
+        height: 36px;
+    }
+
+    .nav-arrow svg {
+        width: 16px;
+        height: 16px;
+    }
+
     #text-mode textarea {
-        font-size: 1rem;
+        font-size: 0.9rem;
+        padding: 0.75rem;
     }
 
-    .submit-row {
-        flex-direction: column;
+    .controls {
+        max-width: 100%;
     }
 
-    .submit-btn {
+    .form-row {
+        flex-wrap: wrap;
+    }
+
+    .form-row input[type="text"] {
         width: 100%;
+    }
+
+    .char-count {
+        width: 100%;
+        text-align: right;
+        margin-top: -0.5rem;
+    }
+
+    .instructions {
+        max-width: 100%;
+    }
+}
+
+@media (min-width: 501px) and (max-width: 600px) {
+    .frame-screen {
+        width: 340px;
+        height: 204px;
     }
 }
 
 /* ==========================================================================
-   Selection & Focus
+   Accessibility
    ========================================================================== */
-::selection {
-    background: var(--accent);
-    color: #000;
-}
-
 :focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
+}
+
+::selection {
+    background: var(--accent);
+    color: var(--bg);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
 }
