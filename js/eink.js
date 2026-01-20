@@ -10,12 +10,12 @@ import { getFirestore, collection, addDoc, serverTimestamp } from 'https://www.g
 // Firebase Configuration
 // ==========================================================================
 const FIREBASE_CONFIG = {
-    apiKey: "YOUR_API_KEY",
+    apiKey: "AIzaSyBxxG0U3hg9Pv13fCY_e9lMaCseozloOcQ",
     authDomain: "inky-179bb.firebaseapp.com",
     projectId: "inky-179bb",
-    storageBucket: "inky-179bb.appspot.com",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID"
+    storageBucket: "inky-179bb.firebasestorage.app",
+    messagingSenderId: "817484798144",
+    appId: "1:817484798144:web:8e42f66edae0976d573525"
 };
 
 // Initialize Firebase
