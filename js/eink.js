@@ -44,7 +44,6 @@ const fileUpload = document.getElementById('file-upload');
 const previewContainer = document.getElementById('preview-container');
 const previewImage = document.getElementById('preview-image');
 const clearImageBtn = document.getElementById('clear-image');
-const imageSizeEl = document.getElementById('image-size');
 const authorInput = document.getElementById('author-input');
 const submitBtn = document.getElementById('submit-btn');
 const btnText = submitBtn.querySelector('.btn-text');
@@ -189,7 +188,6 @@ async function handleFileSelect(file) {
         fileUpload.classList.add('hidden');
         previewContainer.classList.remove('hidden');
         previewImage.src = '';
-        imageSizeEl.textContent = 'Processing...';
 
         // Process image
         const result = await processImage(file);
@@ -197,7 +195,6 @@ async function handleFileSelect(file) {
 
         // Show preview
         previewImage.src = `data:image/jpeg;base64,${result.base64}`;
-        imageSizeEl.textContent = `${result.width}x${result.height} | ${formatBytes(result.size)}`;
 
         hideStatus();
     } catch (error) {
@@ -216,7 +213,6 @@ function clearImage() {
     previewContainer.classList.add('hidden');
     fileUpload.classList.remove('hidden');
     previewImage.src = '';
-    imageSizeEl.textContent = '--';
 }
 
 /**

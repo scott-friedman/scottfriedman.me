@@ -7,98 +7,80 @@
     <link rel="stylesheet" href="css/eink.css">
 </head>
 <body>
-    <div class="terminal">
-        <header class="terminal-header">
-            <span class="terminal-title">E-INK DISPLAY</span>
-            <a href="index.html" class="back-link">back to home</a>
-        </header>
+    <!-- Back link -->
+    <a href="index.html" class="back-link">back to home</a>
 
-        <main class="terminal-body">
-            <p class="intro">
-                Send a message or image to the e-ink display on my desk.
-                Submissions are queued and appear within ~30 seconds.
-            </p>
+    <!-- Instructions Panel -->
+    <aside class="instructions">
+        <h2>Send to Display</h2>
+        <p>Type a message or upload an image to show on my e-ink display.</p>
+        <ul>
+            <li>Text: up to 280 characters</li>
+            <li>Images: auto-resized to 800x480</li>
+            <li>Updates appear in ~30 seconds</li>
+        </ul>
+        <div class="mode-toggle">
+            <button type="button" class="mode-btn active" data-mode="text">TEXT</button>
+            <button type="button" class="mode-btn" data-mode="image">IMAGE</button>
+        </div>
+    </aside>
 
-            <div class="divider"></div>
+    <!-- Display Overlay - positioned over the e-ink screen in photo -->
+    <div class="display-overlay">
+        <form id="submission-form">
+            <!-- Text Mode -->
+            <section id="text-mode" class="mode-section">
+                <textarea
+                    id="text-content"
+                    name="content"
+                    placeholder="Type your message here..."
+                    maxlength="280"
+                ></textarea>
+                <div class="input-footer">
+                    <span class="char-count"><span id="char-current">0</span>/280</span>
+                </div>
+            </section>
 
-            <!-- Mode Toggle -->
-            <div class="mode-toggle">
-                <button type="button" class="mode-btn active" data-mode="text">TEXT</button>
-                <button type="button" class="mode-btn" data-mode="image">IMAGE</button>
-            </div>
-
-            <form id="submission-form">
-                <!-- Text Mode -->
-                <section id="text-mode" class="mode-section">
-                    <div class="form-group">
-                        <label for="text-content">MESSAGE</label>
-                        <textarea
-                            id="text-content"
-                            name="content"
-                            placeholder="What would you like to display?"
-                            maxlength="280"
-                            rows="4"
-                        ></textarea>
-                        <span class="char-count"><span id="char-current">0</span>/280</span>
-                    </div>
-                </section>
-
-                <!-- Image Mode -->
-                <section id="image-mode" class="mode-section hidden">
-                    <div class="form-group">
-                        <label for="image-input">IMAGE</label>
-                        <div class="file-upload" id="file-upload">
-                            <input
-                                type="file"
-                                id="image-input"
-                                name="image"
-                                accept="image/*"
-                            >
-                            <div class="file-upload-text">
-                                <span class="file-icon">+</span>
-                                <span class="file-label">Click or drag to upload</span>
-                                <span class="file-hint">JPG, PNG, HEIC (max 10MB)</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Image Preview -->
-                    <div id="preview-container" class="preview-container hidden">
-                        <div class="preview-header">
-                            <span>PREVIEW (800x480)</span>
-                            <button type="button" id="clear-image" class="clear-btn">CLEAR</button>
-                        </div>
-                        <div class="preview-wrapper">
-                            <img id="preview-image" alt="Preview">
-                        </div>
-                        <div class="preview-info">
-                            <span id="image-size">--</span>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Author Field (both modes) -->
-                <div class="form-group">
-                    <label for="author-input">YOUR NAME</label>
+            <!-- Image Mode -->
+            <section id="image-mode" class="mode-section hidden">
+                <div class="file-upload" id="file-upload">
                     <input
-                        type="text"
-                        id="author-input"
-                        name="author"
-                        placeholder="Anonymous"
-                        maxlength="50"
+                        type="file"
+                        id="image-input"
+                        name="image"
+                        accept="image/*"
                     >
+                    <div class="file-upload-text">
+                        <span class="file-icon">+</span>
+                        <span class="file-label">Click or drag image</span>
+                    </div>
                 </div>
 
-                <!-- Submit Button -->
-                <button type="submit" id="submit-btn" class="submit-btn">
-                    <span class="btn-text">SEND TO DISPLAY</span>
-                    <span class="btn-loading hidden">SENDING...</span>
-                </button>
-            </form>
+                <!-- Image Preview (replaces upload area) -->
+                <div id="preview-container" class="preview-container hidden">
+                    <img id="preview-image" alt="Preview">
+                    <button type="button" id="clear-image" class="clear-btn">&times;</button>
+                </div>
+            </section>
 
-            <!-- Status Messages -->
-            <div id="status-message" class="status-message hidden"></div>
-        </main>
+            <!-- Author & Submit Row -->
+            <div class="submit-row">
+                <input
+                    type="text"
+                    id="author-input"
+                    name="author"
+                    placeholder="Your name"
+                    maxlength="50"
+                >
+                <button type="submit" id="submit-btn" class="submit-btn">
+                    <span class="btn-text">SEND</span>
+                    <span class="btn-loading hidden">...</span>
+                </button>
+            </div>
+        </form>
+
+        <!-- Status Messages -->
+        <div id="status-message" class="status-message hidden"></div>
     </div>
 
     <!-- Firebase SDK (modular v10+) -->
