@@ -499,6 +499,9 @@
         if (!data) return;
         currentData = data;
 
+        // Debug: log the data structure
+        console.log('Firebase current data:', JSON.stringify(data, null, 2));
+
         // Hide loading skeleton
         document.querySelectorAll('.skeleton').forEach(el => el.classList.remove('skeleton'));
 
