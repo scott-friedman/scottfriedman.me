@@ -499,9 +499,6 @@
         if (!data) return;
         currentData = data;
 
-        // Debug: log the data structure
-        console.log('Firebase current data:', JSON.stringify(data, null, 2));
-
         // Hide loading skeleton
         document.querySelectorAll('.skeleton').forEach(el => el.classList.remove('skeleton'));
 
@@ -542,8 +539,9 @@
                 // Unix timestamp - check if seconds or milliseconds
                 timestamp = data.lastCycle < 1e12 ? data.lastCycle * 1000 : data.lastCycle;
             } else {
-                // Date string
-                timestamp = new Date(data.lastCycle).getTime();
+                // Date string - normalize "YYYY-MM-DD HH:MM:SS" to ISO format
+                const normalized = data.lastCycle.replace(' ', 'T');
+                timestamp = new Date(normalized).getTime();
             }
             if (!isNaN(timestamp) && timestamp > 0) {
                 lastCycle.textContent = timeAgo(timestamp);
