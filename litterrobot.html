@@ -13,9 +13,48 @@
     </script>
     <title>Tot's Stats - Scott Friedman</title>
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/litterrobot.css?v=6">
+    <link rel="stylesheet" href="css/litterrobot.css?v=9">
 </head>
 <body class="dashboard-page">
+    <!-- Bliss Background -->
+    <div id="bliss-background">
+        <div class="sky"></div>
+        <svg class="hills-svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMax slice">
+            <defs>
+                <linearGradient id="hillGradient1" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#7cb342"/>
+                    <stop offset="100%" stop-color="#558b2f"/>
+                </linearGradient>
+                <linearGradient id="hillGradient2" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#8bc34a"/>
+                    <stop offset="100%" stop-color="#689f38"/>
+                </linearGradient>
+                <linearGradient id="hillGradient3" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#9ccc65"/>
+                    <stop offset="100%" stop-color="#7cb342"/>
+                </linearGradient>
+            </defs>
+            <!-- Back hills -->
+            <ellipse cx="2200" cy="600" rx="1400" ry="500" fill="url(#hillGradient1)"/>
+            <ellipse cx="-200" cy="700" rx="1200" ry="550" fill="url(#hillGradient2)"/>
+            <!-- Middle hills -->
+            <ellipse cx="1600" cy="850" rx="800" ry="400" fill="url(#hillGradient2)" opacity="0.9"/>
+            <ellipse cx="400" cy="800" rx="700" ry="380" fill="url(#hillGradient1)" opacity="0.85"/>
+            <!-- Front hill - main rolling green -->
+            <ellipse cx="960" cy="1200" rx="1800" ry="700" fill="url(#hillGradient3)"/>
+        </svg>
+    </div>
+
+    <!-- Bliss Clouds -->
+    <div class="cloud cloud-1"></div>
+    <div class="cloud cloud-2"></div>
+    <div class="cloud cloud-3"></div>
+
+    <!-- Wandering Tot Cat -->
+    <div id="tot-cat-container">
+        <svg id="tot-cat-svg" viewBox="0 0 400 500"></svg>
+    </div>
+
     <main class="dashboard-fullwidth">
         <!-- Redesigned Header with Avatar -->
         <header class="dashboard-header">
@@ -206,6 +245,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="js/litterrobot.js?v=5"></script>
+    <script src="js/litterrobot.js?v=6"></script>
+    <script src="js/tot-cat.js?v=3"></script>
 </body>
 </html>
