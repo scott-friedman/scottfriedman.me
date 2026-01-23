@@ -517,7 +517,12 @@
         }
 
         const lastUpdated = document.getElementById('last-updated');
-        lastUpdated.textContent = timeAgo(data.updatedAt);
+        // Handle Unix timestamp in seconds or milliseconds
+        let updatedTimestamp = data.updatedAt;
+        if (typeof updatedTimestamp === 'number' && updatedTimestamp < 1e12) {
+            updatedTimestamp = updatedTimestamp * 1000; // Convert seconds to ms
+        }
+        lastUpdated.textContent = timeAgo(updatedTimestamp);
 
         const wastePercent = data.wasteLevel || 0;
         const wasteFill = document.getElementById('waste-fill');
@@ -528,7 +533,20 @@
 
         const lastCycle = document.getElementById('last-cycle');
         if (data.lastCycle) {
-            lastCycle.textContent = timeAgo(new Date(data.lastCycle).getTime());
+            // Handle both Unix timestamp (seconds or ms) and date string formats
+            let timestamp;
+            if (typeof data.lastCycle === 'number') {
+                // Unix timestamp - check if seconds or milliseconds
+                timestamp = data.lastCycle < 1e12 ? data.lastCycle * 1000 : data.lastCycle;
+            } else {
+                // Date string
+                timestamp = new Date(data.lastCycle).getTime();
+            }
+            if (!isNaN(timestamp) && timestamp > 0) {
+                lastCycle.textContent = timeAgo(timestamp);
+            } else {
+                lastCycle.textContent = '--';
+            }
         } else {
             lastCycle.textContent = '--';
         }
