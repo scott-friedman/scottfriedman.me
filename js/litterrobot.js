@@ -1,6 +1,7 @@
 /**
  * LitterRobot Dashboard
  * Fetches data from Firebase and displays live status + historical charts
+ * Features: milestones, dynamic taglines, fun stats, animations
  */
 
 (function() {
@@ -16,6 +17,52 @@
         appId: "1:1046658110090:web:49a24a0ff13b19cb111373"
     };
 
+    // Data validation bounds
+    const VALIDATION = {
+        visits: { min: 0, max: 50 },
+        cycles: { min: 0, max: 50 },
+        weight: { min: 4, max: 25 }
+    };
+
+    // Milestones system
+    const MILESTONES = {
+        visits: [
+            { threshold: 100, emoji: '🎉', title: '100 Club', description: 'First 100 visits!' },
+            { threshold: 500, emoji: '⭐', title: 'Regular', description: '500 visits achieved' },
+            { threshold: 1000, emoji: '🏆', title: 'Throne Master', description: '1,000 visits!' },
+            { threshold: 5000, emoji: '👑', title: 'Royalty', description: '5,000 visits!' }
+        ],
+        streaks: [
+            { threshold: 7, emoji: '🔥', title: 'Week Warrior', description: '7 day streak' },
+            { threshold: 30, emoji: '💪', title: 'Monthly Master', description: '30 day streak' },
+            { threshold: 100, emoji: '💯', title: 'Century', description: '100 day streak!' }
+        ]
+    };
+
+    // Dynamic taglines
+    const TAGLINES = {
+        justVisited: [
+            "Just visited the facilities",
+            "Bathroom break champion",
+            "Fresh from the throne"
+        ],
+        busy: [
+            "Having a busy day!",
+            "Very regular today",
+            "Keeping the throne warm"
+        ],
+        idle: [
+            "Napping somewhere cozy",
+            "Plotting world domination",
+            "Practicing their meow"
+        ],
+        healthy: [
+            "Healthy and thriving",
+            "Living their best life",
+            "Purr-fectly content"
+        ]
+    };
+
     // Chart instances
     let visitsChart = null;
     let cyclesChart = null;
@@ -23,6 +70,7 @@
 
     // Store history data globally for re-rendering
     let historyData = {};
+    let currentData = null;
 
     // Current time periods for each chart
     const chartPeriods = {
@@ -31,16 +79,21 @@
         weight: 14
     };
 
-    // Chart.js default styling
+    // Refresh countdown
+    let refreshCountdown = 300; // 5 minutes in seconds
+    let countdownInterval = null;
+
+    // Chart.js default styling - cat-themed warm palette
     const chartColors = {
-        visits: '#2d5a3d',
-        visitsLight: 'rgba(45, 90, 61, 0.15)',
-        cycles: '#c45d3a',
-        cyclesLight: 'rgba(196, 93, 58, 0.15)',
-        weight: '#6b4423',
-        weightLight: 'rgba(107, 68, 35, 0.15)',
+        visits: '#7eb07c',
+        visitsLight: 'rgba(126, 176, 124, 0.2)',
+        cycles: '#e07a5f',
+        cyclesLight: 'rgba(224, 122, 95, 0.2)',
+        weight: '#d4a847',
+        weightLight: 'rgba(212, 168, 71, 0.2)',
+        average: '#81b1c9',
         gray: '#666',
-        gridColor: 'rgba(0, 0, 0, 0.05)'
+        gridColor: 'rgba(0, 0, 0, 0.06)'
     };
 
     // Initialize Firebase
@@ -49,6 +102,18 @@
             firebase.initializeApp(FIREBASE_CONFIG);
         }
         return firebase.database();
+    }
+
+    // Data validation
+    function validateMetric(value, type) {
+        if (typeof value !== 'number' || isNaN(value)) return null;
+        const bounds = VALIDATION[type];
+        if (!bounds) return value;
+        if (value < bounds.min || value > bounds.max) {
+            console.warn(`Invalid ${type}: ${value}`);
+            return null;
+        }
+        return value;
     }
 
     // Status code to human-readable text mapping
@@ -106,9 +171,8 @@
     }
 
     function formatDate(dateStr, period) {
-        // Parse date string as local time (not UTC) to avoid off-by-one day issue
         const [year, month, day] = dateStr.split('-').map(Number);
-        const date = new Date(year, month - 1, day); // month is 0-indexed
+        const date = new Date(year, month - 1, day);
         if (period === 'all' || period >= 365) {
             return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
         } else if (period >= 30) {
@@ -117,14 +181,340 @@
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     }
 
+    function formatTooltipDate(dateLabel) {
+        return dateLabel;
+    }
+
+    // Get dynamic tagline based on activity
+    function getDynamicTagline() {
+        if (!currentData) return TAGLINES.healthy[0];
+
+        const now = Date.now();
+        const updatedAt = currentData.updatedAt || 0;
+        const minutesSinceUpdate = (now - updatedAt) / 60000;
+        const status = (currentData.status || '').toLowerCase();
+
+        // Just visited (within last 10 minutes and was cat-related state)
+        if (minutesSinceUpdate < 10 && (status === 'cd' || status === 'cst' || status === 'ccc')) {
+            return TAGLINES.justVisited[Math.floor(Math.random() * TAGLINES.justVisited.length)];
+        }
+
+        // Busy day (more than average visits today)
+        const todayVisits = currentData.todayVisits || 0;
+        if (todayVisits >= 5) {
+            return TAGLINES.busy[Math.floor(Math.random() * TAGLINES.busy.length)];
+        }
+
+        // Idle (long time since activity)
+        if (minutesSinceUpdate > 120) {
+            return TAGLINES.idle[Math.floor(Math.random() * TAGLINES.idle.length)];
+        }
+
+        // Default: healthy
+        return TAGLINES.healthy[Math.floor(Math.random() * TAGLINES.healthy.length)];
+    }
+
+    // Update dynamic tagline
+    function updateTagline() {
+        const taglineEl = document.getElementById('dynamic-tagline');
+        if (taglineEl) {
+            taglineEl.textContent = getDynamicTagline();
+        }
+    }
+
+    // Random Tot facts for when there's no interesting data-driven fact
+    const RANDOM_TOT_FACTS = [
+        { value: "100%", label: "Chance Tot is judging you right now" },
+        { value: "∞", label: "Amount of treats Tot deserves" },
+        { value: "3am", label: "Tot's favorite time to zoom" },
+        { value: "0", label: "Tasks Tot completed today" },
+        { value: "24/7", label: "Tot's napping schedule" },
+        { value: "Yes", label: "Tot thinks they're the boss" },
+        { value: "???", label: "What Tot is plotting" },
+        { value: "10/10", label: "Tot's self-rated cuteness" },
+        { value: "1", label: "Brain cells (shared with all cats)" },
+        { value: "∞", label: "Tot's ego size" },
+        { value: "5pm", label: "Tot's dinner reminder time" },
+        { value: "No", label: "Will Tot come when called" },
+        { value: "Warm", label: "Tot's favorite laptop spot" },
+        { value: "4am", label: "Optimal time to knock things off shelves" }
+    ];
+
+    // Calculate comprehensive stats from history data
+    function calculateAllStats() {
+        const dates = Object.keys(historyData).sort();
+        if (dates.length === 0) return null;
+
+        let totalVisits = 0;
+        let totalCycles = 0;
+        let maxVisitsDay = { date: null, count: 0 };
+        let minVisitsDay = { date: null, count: Infinity };
+        let currentStreak = 0;
+        let longestStreak = 0;
+        let tempStreak = 0;
+        let perfectDays = 0; // days where visits == cycles
+        let lazyDays = 0; // days with 0-2 visits
+        let busyDays = 0; // days with 6+ visits
+        let weights = [];
+        let weekdayVisits = [0, 0, 0, 0, 0, 0, 0]; // Sun-Sat
+        let weekdayCounts = [0, 0, 0, 0, 0, 0, 0];
+
+        const today = new Date().toISOString().split('T')[0];
+        const sortedDates = [...dates].sort();
+
+        sortedDates.forEach((date, index) => {
+            const dayData = historyData[date];
+            const visits = typeof dayData?.visits === 'number' ? dayData.visits : 0;
+            const cycles = typeof dayData?.cycles === 'number' ? dayData.cycles : 0;
+
+            totalVisits += visits;
+            totalCycles += cycles;
+
+            // Track max/min days
+            if (visits > maxVisitsDay.count) {
+                maxVisitsDay = { date, count: visits };
+            }
+            if (visits < minVisitsDay.count && visits > 0) {
+                minVisitsDay = { date, count: visits };
+            }
+
+            // Track day types
+            if (visits === cycles && visits > 0) perfectDays++;
+            if (visits <= 2) lazyDays++;
+            if (visits >= 6) busyDays++;
+
+            // Track weights
+            if (dayData?.avgWeight) weights.push(dayData.avgWeight);
+            if (dayData?.weights) {
+                Object.values(dayData.weights).forEach(w => {
+                    if (typeof w === 'number' && w > 4 && w < 25) weights.push(w);
+                });
+            }
+
+            // Track weekday distribution
+            const dayOfWeek = new Date(date).getDay();
+            weekdayVisits[dayOfWeek] += visits;
+            weekdayCounts[dayOfWeek]++;
+
+            // Calculate streaks
+            if (visits > 0) {
+                tempStreak++;
+                longestStreak = Math.max(longestStreak, tempStreak);
+            } else {
+                tempStreak = 0;
+            }
+        });
+
+        // Calculate current streak (from most recent backwards)
+        let counting = true;
+        [...sortedDates].reverse().forEach((date, index) => {
+            if (!counting) return;
+            const visits = historyData[date]?.visits || 0;
+            if (visits > 0) {
+                if (index === 0) {
+                    const diffDays = Math.floor((new Date(today) - new Date(date)) / 86400000);
+                    if (diffDays <= 1) currentStreak++;
+                    else counting = false;
+                } else {
+                    currentStreak++;
+                }
+            } else {
+                counting = false;
+            }
+        });
+
+        // Find busiest weekday
+        const avgByWeekday = weekdayVisits.map((v, i) => weekdayCounts[i] > 0 ? v / weekdayCounts[i] : 0);
+        const busiestWeekday = avgByWeekday.indexOf(Math.max(...avgByWeekday));
+        const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+        // Weight stats
+        const avgWeight = weights.length > 0 ? weights.reduce((a, b) => a + b, 0) / weights.length : null;
+        const minWeight = weights.length > 0 ? Math.min(...weights) : null;
+        const maxWeight = weights.length > 0 ? Math.max(...weights) : null;
+
+        return {
+            totalVisits,
+            totalCycles,
+            daysTracked: dates.length,
+            avgDaily: (totalVisits / dates.length).toFixed(1),
+            currentStreak,
+            longestStreak,
+            maxVisitsDay,
+            minVisitsDay,
+            perfectDays,
+            lazyDays,
+            busyDays,
+            busiestWeekday: weekdayNames[busiestWeekday],
+            avgByWeekday,
+            avgWeight,
+            minWeight,
+            maxWeight,
+            cycleEfficiency: totalVisits > 0 ? ((totalCycles / totalVisits) * 100).toFixed(0) : 0
+        };
+    }
+
+    // Generate creative baseball-style fun facts - randomly cycled
+    function generateFunFacts(stats) {
+        if (!stats) return Array(4).fill(null).map(() => getRandomTotFact());
+
+        // Use current date + hour as seed for daily rotation that changes throughout day
+        const now = new Date();
+        const seed = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate() + Math.floor(now.getHours() / 6);
+
+        const allFacts = [
+            // Volume facts
+            { value: stats.totalVisits.toLocaleString(), label: "Career visits" },
+            { value: `${stats.avgDaily}`, label: "Visits per day (VPD)" },
+            { value: `${stats.maxVisitsDay.count}`, label: `Single-day record (${formatShortDate(stats.maxVisitsDay.date)})` },
+            { value: stats.totalCycles.toLocaleString(), label: "Total clean cycles" },
+
+            // Efficiency facts
+            { value: `${stats.cycleEfficiency}%`, label: "Clean cycle rate" },
+            { value: `${stats.perfectDays}`, label: "Perfect days (visits = cycles)" },
+
+            // Day type facts
+            { value: `${stats.busyDays}`, label: "Busy days (6+ visits)" },
+            { value: `${stats.lazyDays}`, label: "Light days (0-2 visits)" },
+
+            // Pattern facts
+            { value: stats.busiestWeekday.slice(0, 3), label: "Favorite day of the week" },
+
+            // Weight facts (if available)
+            ...(stats.avgWeight ? [
+                { value: `${stats.avgWeight.toFixed(1)}`, label: "Average weight (lbs)" },
+                { value: `${stats.minWeight.toFixed(1)}`, label: "Lightest weigh-in (lbs)" },
+                { value: `${stats.maxWeight.toFixed(1)}`, label: "Heaviest weigh-in (lbs)" }
+            ] : []),
+
+            // Calculated/derived facts
+            { value: `${Math.round(stats.totalVisits / stats.daysTracked * 7)}`, label: "Weekly visit pace" },
+            { value: `${stats.daysTracked}`, label: "Days tracked" },
+            { value: `~${Math.round(stats.totalVisits * 0.5)}`, label: "Est. scoops cleaned" },
+            { value: `${Math.round(stats.totalCycles / stats.daysTracked * 30)}`, label: "Monthly cycle pace" },
+            { value: `${(stats.totalVisits / stats.totalCycles).toFixed(1)}`, label: "Visits per cycle ratio" }
+        ];
+
+        // Seeded shuffle function
+        function seededShuffle(array, s) {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                s = (s * 9301 + 49297) % 233280;
+                const j = Math.floor((s / 233280) * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        // Shuffle and pick facts
+        const shuffled = seededShuffle(allFacts, seed);
+        const selectedFacts = shuffled.slice(0, 3);
+
+        // Always include one random Tot fact
+        selectedFacts.push(getRandomTotFact());
+
+        return selectedFacts;
+    }
+
+    function formatShortDate(dateStr) {
+        if (!dateStr) return '';
+        const [year, month, day] = dateStr.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    function getRandomTotFact() {
+        // Use date as seed for daily consistency
+        const today = new Date().toISOString().split('T')[0];
+        const seed = today.split('-').reduce((a, b) => a + parseInt(b), 0);
+        const index = seed % RANDOM_TOT_FACTS.length;
+        return RANDOM_TOT_FACTS[index];
+    }
+
+    // Get earned milestones
+    function getEarnedMilestones(stats) {
+        if (!stats) return [];
+        const earned = [];
+
+        // Visit milestones
+        MILESTONES.visits.forEach(milestone => {
+            if (stats.totalVisits >= milestone.threshold) {
+                earned.push({ ...milestone, type: 'visits' });
+            }
+        });
+
+        // Streak milestones
+        MILESTONES.streaks.forEach(milestone => {
+            if (stats.currentStreak >= milestone.threshold) {
+                earned.push({ ...milestone, type: 'streak' });
+            }
+        });
+
+        return earned;
+    }
+
+    // Update fun facts display
+    function updateFunFacts() {
+        const stats = calculateAllStats();
+        const facts = generateFunFacts(stats);
+
+        facts.forEach((fact, i) => {
+            const card = document.getElementById(`fun-fact-${i + 1}`);
+            if (card && fact) {
+                const valueEl = card.querySelector('.fact-value');
+                const labelEl = card.querySelector('.fact-label');
+                if (valueEl) valueEl.textContent = fact.value;
+                if (labelEl) labelEl.textContent = fact.label;
+            }
+        });
+
+        // Update milestones
+        if (stats) updateMilestones(stats);
+    }
+
+    // Update milestones display with descriptors
+    function updateMilestones(stats) {
+        const container = document.getElementById('milestones-container');
+        if (!container) return;
+
+        const earned = getEarnedMilestones(stats);
+
+        if (earned.length === 0) {
+            container.innerHTML = '<p class="no-milestones">Keep visiting to earn badges!</p>';
+            return;
+        }
+
+        container.innerHTML = earned.map(m => `
+            <div class="milestone-badge">
+                <span class="milestone-emoji">${m.emoji}</span>
+                <span class="milestone-info">
+                    <span class="milestone-title">${m.title}</span>
+                    <span class="milestone-desc">${m.description}</span>
+                </span>
+            </div>
+        `).join('');
+    }
+
     function updateCurrentStatus(data) {
         if (!data) return;
+        currentData = data;
 
+        // Hide loading skeleton
+        document.querySelectorAll('.skeleton').forEach(el => el.classList.remove('skeleton'));
+
+        // Update status badge
         const statusBadge = document.getElementById('status-badge');
+        const statusDot = document.getElementById('status-dot');
         const rawStatus = data.status || 'Unknown';
         const readableStatus = getReadableStatus(rawStatus);
         statusBadge.textContent = readableStatus;
-        statusBadge.className = 'status-badge ' + getStatusClass(readableStatus.toLowerCase());
+        const statusClass = getStatusClass(readableStatus.toLowerCase());
+        statusBadge.className = 'status-badge ' + statusClass;
+
+        // Update status dot
+        if (statusDot) {
+            statusDot.className = 'status-dot ' + statusClass;
+        }
 
         const lastUpdated = document.getElementById('last-updated');
         lastUpdated.textContent = timeAgo(data.updatedAt);
@@ -145,7 +535,8 @@
 
         const lastWeight = document.getElementById('last-weight');
         if (data.lastWeight) {
-            lastWeight.textContent = data.lastWeight.toFixed(1) + ' lbs';
+            const validWeight = validateMetric(data.lastWeight, 'weight');
+            lastWeight.textContent = validWeight ? validWeight.toFixed(1) + ' lbs' : '-- lbs';
         } else {
             lastWeight.textContent = '-- lbs';
         }
@@ -159,13 +550,23 @@
         if (todayCycles) {
             todayCycles.textContent = data.todayCycles || 0;
         }
+
+        // Update litter level if available
+        const litterLevel = document.getElementById('litter-level');
+        if (litterLevel && data.litterLevel !== undefined) {
+            litterLevel.textContent = data.litterLevel + '%';
+        }
+
+        // Update tagline
+        updateTagline();
     }
 
     function getStatusClass(status) {
+        if (status.includes('cleaning') || status.includes('cycle')) return 'cycling';
         if (status.includes('ready') || status.includes('idle')) return 'ready';
-        if (status.includes('cycling') || status.includes('running')) return 'cycling';
         if (status.includes('full') || status.includes('drawer')) return 'drawer-full';
         if (status.includes('offline') || status.includes('unavailable')) return 'offline';
+        if (status.includes('cat')) return 'cat-detected';
         if (status.includes('error') || status.includes('fault')) return 'error';
         return 'ready';
     }
@@ -176,14 +577,38 @@
         return '';
     }
 
-    // Get common chart options
-    function getChartOptions(period) {
+    // Get common chart options with enhanced tooltips
+    function getChartOptions(period, chartType) {
         const maxTicks = period === 'all' || period >= 365 ? 12 : (period >= 30 ? 10 : 7);
         return {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
             plugins: {
-                legend: { display: false }
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(45, 41, 38, 0.95)',
+                    titleFont: { size: 13, weight: '600' },
+                    bodyFont: { size: 12 },
+                    padding: 12,
+                    cornerRadius: 8,
+                    displayColors: false,
+                    callbacks: {
+                        title: (items) => formatTooltipDate(items[0].label),
+                        label: (context) => {
+                            const value = context.parsed.y;
+                            if (context.dataset.label === 'Average') {
+                                return `Avg: ${value.toFixed(1)}`;
+                            }
+                            if (chartType === 'weight') return `${value.toFixed(1)} lbs`;
+                            if (chartType === 'visits') return `${value} visit${value !== 1 ? 's' : ''}`;
+                            return `${value} cycle${value !== 1 ? 's' : ''}`;
+                        }
+                    }
+                }
             },
             scales: {
                 y: {
@@ -206,11 +631,14 @@
             },
             elements: {
                 point: {
-                    radius: period >= 30 ? 1 : 2,
-                    hoverRadius: 4
+                    radius: period >= 30 ? 1 : 3,
+                    hoverRadius: 5
                 },
                 line: {
                     tension: 0.3
+                },
+                bar: {
+                    borderRadius: 4
                 }
             }
         };
@@ -222,7 +650,6 @@
         const dates = [];
 
         if (period === 'all') {
-            // Return all dates from history
             return Object.keys(historyData).sort();
         }
 
@@ -234,6 +661,13 @@
         return dates;
     }
 
+    // Calculate average for trend line
+    function calculateAverage(data) {
+        const validData = data.filter(v => typeof v === 'number' && !isNaN(v));
+        if (validData.length === 0) return 0;
+        return validData.reduce((a, b) => a + b, 0) / validData.length;
+    }
+
     // Initialize/update visits chart
     function updateVisitsChart(period) {
         const ctx = document.getElementById('visits-chart');
@@ -241,31 +675,56 @@
 
         const dates = getDateRange(period);
         const labels = dates.map(d => formatDate(d, period));
-        const data = dates.map(d => historyData[d]?.visits || historyData[d]?.cycles || 0);
+
+        // Fixed: properly handle visits data, treat 0 as valid
+        const data = dates.map(d => {
+            const dayData = historyData[d];
+            return typeof dayData?.visits === 'number' ? dayData.visits : 0;
+        });
+
+        const average = calculateAverage(data);
+        const avgLine = new Array(data.length).fill(average);
+
+        // Use bar chart for periods <= 30 days
+        const useBar = period !== 'all' && period <= 30;
+
+        const datasets = [{
+            label: 'Visits',
+            data: data,
+            backgroundColor: useBar ? chartColors.visits : chartColors.visitsLight,
+            borderColor: chartColors.visits,
+            borderWidth: useBar ? 0 : 2,
+            fill: !useBar,
+            tension: 0.3
+        }];
+
+        // Add average line for longer periods
+        if (!useBar && data.length > 7) {
+            datasets.push({
+                label: 'Average',
+                data: avgLine,
+                borderColor: chartColors.average,
+                borderWidth: 1,
+                borderDash: [5, 5],
+                fill: false,
+                pointRadius: 0,
+                tension: 0
+            });
+        }
 
         if (visitsChart) {
+            visitsChart.config.type = useBar ? 'bar' : 'line';
             visitsChart.data.labels = labels;
-            visitsChart.data.datasets[0].data = data;
-            visitsChart.options = getChartOptions(period);
+            visitsChart.data.datasets = datasets;
+            visitsChart.options = getChartOptions(period, 'visits');
             visitsChart.update();
             return;
         }
 
         visitsChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Visits',
-                    data: data,
-                    backgroundColor: chartColors.visitsLight,
-                    borderColor: chartColors.visits,
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.3
-                }]
-            },
-            options: getChartOptions(period)
+            type: useBar ? 'bar' : 'line',
+            data: { labels, datasets },
+            options: getChartOptions(period, 'visits')
         });
     }
 
@@ -276,31 +735,52 @@
 
         const dates = getDateRange(period);
         const labels = dates.map(d => formatDate(d, period));
-        const data = dates.map(d => historyData[d]?.cycles || 0);
+        const data = dates.map(d => {
+            const dayData = historyData[d];
+            return typeof dayData?.cycles === 'number' ? dayData.cycles : 0;
+        });
+
+        const average = calculateAverage(data);
+        const avgLine = new Array(data.length).fill(average);
+
+        const useBar = period !== 'all' && period <= 30;
+
+        const datasets = [{
+            label: 'Cycles',
+            data: data,
+            backgroundColor: useBar ? chartColors.cycles : chartColors.cyclesLight,
+            borderColor: chartColors.cycles,
+            borderWidth: useBar ? 0 : 2,
+            fill: !useBar,
+            tension: 0.3
+        }];
+
+        if (!useBar && data.length > 7) {
+            datasets.push({
+                label: 'Average',
+                data: avgLine,
+                borderColor: chartColors.average,
+                borderWidth: 1,
+                borderDash: [5, 5],
+                fill: false,
+                pointRadius: 0,
+                tension: 0
+            });
+        }
 
         if (cyclesChart) {
+            cyclesChart.config.type = useBar ? 'bar' : 'line';
             cyclesChart.data.labels = labels;
-            cyclesChart.data.datasets[0].data = data;
-            cyclesChart.options = getChartOptions(period);
+            cyclesChart.data.datasets = datasets;
+            cyclesChart.options = getChartOptions(period, 'cycles');
             cyclesChart.update();
             return;
         }
 
         cyclesChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Cycles',
-                    data: data,
-                    backgroundColor: chartColors.cyclesLight,
-                    borderColor: chartColors.cycles,
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.3
-                }]
-            },
-            options: getChartOptions(period)
+            type: useBar ? 'bar' : 'line',
+            data: { labels, datasets },
+            options: getChartOptions(period, 'cycles')
         });
     }
 
@@ -316,31 +796,68 @@
         dates.forEach(dateKey => {
             const dayData = historyData[dateKey];
             if (dayData) {
-                if (dayData.weights && dayData.weights.length) {
-                    dayData.weights.forEach(w => {
-                        weights.push(w);
-                        labels.push(formatDate(dateKey, period));
+                if (dayData.weights && typeof dayData.weights === 'object') {
+                    // Handle Firebase object format (converted from array)
+                    const weightValues = Object.values(dayData.weights);
+                    weightValues.forEach(w => {
+                        const validWeight = validateMetric(w, 'weight');
+                        if (validWeight !== null) {
+                            weights.push(validWeight);
+                            labels.push(formatDate(dateKey, period));
+                        }
                     });
                 } else if (dayData.avgWeight) {
-                    weights.push(dayData.avgWeight);
-                    labels.push(formatDate(dateKey, period));
+                    const validWeight = validateMetric(dayData.avgWeight, 'weight');
+                    if (validWeight !== null) {
+                        weights.push(validWeight);
+                        labels.push(formatDate(dateKey, period));
+                    }
                 }
             }
         });
 
-        if (weights.length === 0) return;
-
-        const options = getChartOptions(period);
-        options.scales.y.ticks.callback = (value) => value.toFixed(1);
-        options.plugins.tooltip = {
-            callbacks: {
-                label: (context) => context.parsed.y.toFixed(1) + ' lbs'
+        if (weights.length === 0) {
+            // Show empty state
+            if (weightChart) {
+                weightChart.data.labels = [];
+                weightChart.data.datasets[0].data = [];
+                weightChart.update();
             }
-        };
+            return;
+        }
+
+        const average = calculateAverage(weights);
+        const avgLine = new Array(weights.length).fill(average);
+
+        const options = getChartOptions(period, 'weight');
+        options.scales.y.ticks.callback = (value) => value.toFixed(1);
+
+        const datasets = [{
+            label: 'Weight (lbs)',
+            data: weights,
+            backgroundColor: chartColors.weightLight,
+            borderColor: chartColors.weight,
+            borderWidth: 2,
+            fill: true,
+            tension: 0.3
+        }];
+
+        if (weights.length > 7) {
+            datasets.push({
+                label: 'Average',
+                data: avgLine,
+                borderColor: chartColors.average,
+                borderWidth: 1,
+                borderDash: [5, 5],
+                fill: false,
+                pointRadius: 0,
+                tension: 0
+            });
+        }
 
         if (weightChart) {
             weightChart.data.labels = labels;
-            weightChart.data.datasets[0].data = weights;
+            weightChart.data.datasets = datasets;
             weightChart.options = options;
             weightChart.update();
             return;
@@ -348,18 +865,7 @@
 
         weightChart = new Chart(ctx, {
             type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Weight (lbs)',
-                    data: weights,
-                    backgroundColor: chartColors.weightLight,
-                    borderColor: chartColors.weight,
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.3
-                }]
-            },
+            data: { labels, datasets },
             options: options
         });
     }
@@ -371,16 +877,13 @@
 
             toggleGroup.querySelectorAll('.toggle-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    // Update active state
                     toggleGroup.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
 
-                    // Get period
                     const days = btn.dataset.days;
                     const period = days === 'all' ? 'all' : parseInt(days);
                     chartPeriods[chartType] = period;
 
-                    // Update the appropriate chart
                     if (chartType === 'visits') {
                         updateVisitsChart(period);
                     } else if (chartType === 'cycles') {
@@ -393,14 +896,72 @@
         });
     }
 
+    // Show error banner
+    function showError(message) {
+        const banner = document.getElementById('error-banner');
+        const errorMsg = document.getElementById('error-message');
+        if (banner && errorMsg) {
+            errorMsg.textContent = message;
+            banner.hidden = false;
+        }
+    }
+
+    // Hide error banner
+    function hideError() {
+        const banner = document.getElementById('error-banner');
+        if (banner) {
+            banner.hidden = true;
+        }
+    }
+
+    // Retry connection
+    window.retryConnection = function() {
+        hideError();
+        loadData();
+    };
+
+    // Update refresh countdown
+    function updateCountdown() {
+        const countdownEl = document.getElementById('countdown');
+        if (!countdownEl) return;
+
+        refreshCountdown--;
+        if (refreshCountdown <= 0) {
+            refreshCountdown = 300;
+            refreshData();
+        }
+
+        const minutes = Math.floor(refreshCountdown / 60);
+        const seconds = refreshCountdown % 60;
+        countdownEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    // Refresh data from Firebase
+    function refreshData() {
+        const db = initFirebase();
+        db.ref('litterrobot/history').once('value').then((snapshot) => {
+            historyData = snapshot.val() || {};
+            updateVisitsChart(chartPeriods.visits);
+            updateCyclesChart(chartPeriods.cycles);
+            updateWeightChart(chartPeriods.weight);
+            updateFunFacts();
+            hideError();
+        }).catch(err => {
+            console.error('Error refreshing history:', err);
+            showError('Unable to refresh data');
+        });
+    }
+
     function loadData() {
         const db = initFirebase();
 
         db.ref('litterrobot/current').once('value').then((snapshot) => {
             const data = snapshot.val();
             updateCurrentStatus(data);
+            hideError();
         }).catch(err => {
-            console.log('Error fetching current status:', err);
+            console.error('Error fetching current status:', err);
+            showError('Unable to connect to database');
         });
 
         db.ref('litterrobot/history').once('value').then((snapshot) => {
@@ -408,8 +969,9 @@
             updateVisitsChart(chartPeriods.visits);
             updateCyclesChart(chartPeriods.cycles);
             updateWeightChart(chartPeriods.weight);
+            updateFunFacts();
         }).catch(err => {
-            console.log('Error fetching history:', err);
+            console.error('Error fetching history:', err);
         });
     }
 
@@ -420,6 +982,7 @@
             const data = snapshot.val();
             if (data) {
                 updateCurrentStatus(data);
+                hideError();
             }
         });
     }
@@ -429,16 +992,11 @@
         loadData();
         setupRealtimeUpdates();
 
-        // Refresh charts every 5 minutes
-        setInterval(() => {
-            const db = initFirebase();
-            db.ref('litterrobot/history').once('value').then((snapshot) => {
-                historyData = snapshot.val() || {};
-                updateVisitsChart(chartPeriods.visits);
-                updateCyclesChart(chartPeriods.cycles);
-                updateWeightChart(chartPeriods.weight);
-            });
-        }, 300000);
+        // Start countdown timer
+        countdownInterval = setInterval(updateCountdown, 1000);
+
+        // Update tagline periodically
+        setInterval(updateTagline, 60000);
     }
 
     if (document.readyState === 'loading') {

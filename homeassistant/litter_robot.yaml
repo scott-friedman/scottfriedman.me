@@ -1,0 +1,208 @@
+# =============================================================================
+# Litter Robot HomeAssistant Configuration
+# =============================================================================
+#
+# INSTALLATION INSTRUCTIONS:
+#
+# 1. AUTOMATIONS: Copy the automation entries below to your automations.yaml
+#    OR use the UI to edit automations with ID '1745593508763' and '1745594658519'
+#
+# 2. REST COMMANDS: Add ONLY the individual commands to your existing rest_command
+#    section in configuration.yaml. The structure should look like:
+#
+#    rest_command:
+#      push_litterrobot_current:
+#        url: "https://..."
+#        ...
+#      push_litterrobot_weight:
+#        url: "https://..."
+#        ...
+#      push_litterrobot_history:
+#        url: "https://..."
+#        ...
+#
+# 3. Restart HomeAssistant
+#
+# =============================================================================
+
+
+# =============================================================================
+# AUTOMATIONS (copy to automations.yaml)
+# =============================================================================
+
+# Automation 1: Litter Robot Status Logger
+# ID: '1745593508763'
+# Fixed to catch visits even when HA skips the 'cd' (cat detected) state
+#
+# - id: '1745593508763'
+#   alias: Litter Robot Status Logger
+#   description: 'Track visits and cycles reliably - fixed to catch missing cd states'
+#   triggers:
+#     - trigger: state
+#       entity_id: sensor.starshit_status_code
+#       from:
+#         - rdy
+#         - dfs
+#       to:
+#         - cd
+#         - cst
+#       id: visit_start
+#     - trigger: state
+#       entity_id: sensor.starshit_status_code
+#       from: ccp
+#       to:
+#         - rdy
+#         - dfs
+#       id: cycle_complete
+#   conditions: []
+#   actions:
+#     - choose:
+#         - conditions:
+#             - condition: trigger
+#               id: visit_start
+#           sequence:
+#             - action: counter.increment
+#               target:
+#                 entity_id: counter.litter_robot_counter
+#         - conditions:
+#             - condition: trigger
+#               id: cycle_complete
+#           sequence:
+#             - action: counter.increment
+#               target:
+#                 entity_id: counter.litter_robot_cycle_count
+#             - action: input_datetime.set_datetime
+#               target:
+#                 entity_id: input_datetime.litter_robot_last_cycle
+#               data:
+#                 timestamp: '{{ now().timestamp() }}'
+#     - action: rest_command.push_litterrobot_current
+#       data: {}
+#   mode: single
+
+
+# Automation 2: Litter Robot Weight Logger
+# ID: '1745594658519'
+# Now pushes to Firebase instead of just file
+#
+# - id: '1745594658519'
+#   alias: Litter Robot Weight Logger
+#   description: 'Log weight to Firebase after each visit'
+#   triggers:
+#     - trigger: state
+#       entity_id: sensor.tot_weight
+#   conditions:
+#     - condition: template
+#       value_template: >
+#         {{ states('sensor.tot_weight') | float(0) > 0 and
+#            states('sensor.tot_weight') | float(0) < 30 }}
+#   actions:
+#     - action: notify.send_message
+#       target:
+#         entity_id: notify.file
+#       data:
+#         message: '{{ now().strftime(''%Y-%m-%d %H:%M:%S'') }}, {{ states(''sensor.tot_weight'') | float }}'
+#     - action: rest_command.push_litterrobot_weight
+#       data:
+#         weight: '{{ states(''sensor.tot_weight'') | float }}'
+#   mode: single
+
+
+# =============================================================================
+# REST COMMANDS (add to configuration.yaml under rest_command:)
+# =============================================================================
+#
+# IMPORTANT: These should be DIRECT children of rest_command: in your config
+# Do NOT copy the "rest_command:" line if you already have one - just add
+# the individual commands under your existing rest_command: section.
+#
+# Your configuration.yaml should look like:
+#
+# rest_command:
+#   push_litterrobot_current:
+#     url: "https://scottfriedman-f400d-default-rtdb.firebaseio.com/litterrobot/current.json"
+#     method: PATCH
+#     content_type: "application/json"
+#     payload: >
+#       {
+#         "status": "{{ states('sensor.starshit_status_code') }}",
+#         "wasteLevel": {{ states('sensor.starshit_waste_drawer') | int(0) }},
+#         "litterLevel": {{ states('sensor.starshit_litter_level') | int(0) }},
+#         "lastWeight": {{ states('sensor.starshit_pet_weight') | float(0) }},
+#         "todayVisits": {{ states('counter.litter_robot_counter') | int(0) }},
+#         "todayCycles": {{ states('counter.litter_robot_cycle_count') | int(0) }},
+#         "lastCycle": "{{ states('input_datetime.litter_robot_last_cycle') }}",
+#         "updatedAt": {{ as_timestamp(now()) * 1000 | int }}
+#       }
+#
+#   push_litterrobot_weight:
+#     url: "https://scottfriedman-f400d-default-rtdb.firebaseio.com/litterrobot/history/{{ now().strftime('%Y-%m-%d') }}/weights.json"
+#     method: POST
+#     content_type: "application/json"
+#     payload: '{{ weight }}'
+#
+#   push_litterrobot_history:
+#     url: "https://scottfriedman-f400d-default-rtdb.firebaseio.com/litterrobot/history/{{ now().strftime('%Y-%m-%d') }}.json"
+#     method: PATCH
+#     content_type: "application/json"
+#     payload: >
+#       {
+#         "visits": {{ states('counter.litter_robot_counter') | int(0) }},
+#         "cycles": {{ states('counter.litter_robot_cycle_count') | int(0) }}
+#       }
+
+
+# =============================================================================
+# COPY-PASTE READY SECTIONS BELOW
+# =============================================================================
+
+# --- REST COMMANDS (paste under your existing rest_command: section) ---
+
+#   push_litterrobot_current:
+#     url: "https://scottfriedman-f400d-default-rtdb.firebaseio.com/litterrobot/current.json"
+#     method: PATCH
+#     content_type: "application/json"
+#     payload: >
+#       {
+#         "status": "{{ states('sensor.starshit_status_code') }}",
+#         "wasteLevel": {{ states('sensor.starshit_waste_drawer') | int(0) }},
+#         "litterLevel": {{ states('sensor.starshit_litter_level') | int(0) }},
+#         "lastWeight": {{ states('sensor.starshit_pet_weight') | float(0) }},
+#         "todayVisits": {{ states('counter.litter_robot_counter') | int(0) }},
+#         "todayCycles": {{ states('counter.litter_robot_cycle_count') | int(0) }},
+#         "lastCycle": "{{ states('input_datetime.litter_robot_last_cycle') }}",
+#         "updatedAt": {{ as_timestamp(now()) * 1000 | int }}
+#       }
+#
+#   push_litterrobot_weight:
+#     url: "https://scottfriedman-f400d-default-rtdb.firebaseio.com/litterrobot/history/{{ now().strftime('%Y-%m-%d') }}/weights.json"
+#     method: POST
+#     content_type: "application/json"
+#     payload: '{{ weight }}'
+#
+#   push_litterrobot_history:
+#     url: "https://scottfriedman-f400d-default-rtdb.firebaseio.com/litterrobot/history/{{ now().strftime('%Y-%m-%d') }}.json"
+#     method: PATCH
+#     content_type: "application/json"
+#     payload: >
+#       {
+#         "visits": {{ states('counter.litter_robot_counter') | int(0) }},
+#         "cycles": {{ states('counter.litter_robot_cycle_count') | int(0) }}
+#       }
+
+
+# =============================================================================
+# NOTES
+# =============================================================================
+#
+# ROOT CAUSE OF MISSED VISITS:
+# HomeAssistant sometimes skips the 'cd' (cat detected) state and goes
+# directly to 'cst' (cat sensor timing). The updated automation now triggers
+# on EITHER 'cd' OR 'cst' when transitioning from idle states (rdy/dfs).
+#
+# SENSOR NAME NOTE:
+# Verify these are the same entity or update to be consistent:
+# - sensor.tot_weight (used in weight automation)
+# - sensor.starshit_pet_weight (used in rest_command)
+#
+# =============================================================================
