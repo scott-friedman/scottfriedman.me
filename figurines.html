@@ -12,10 +12,32 @@
       gtag('config', 'G-097VQD41F8');
     </script>
     <title>Figurine Playground - Scott Friedman</title>
+
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Interactive 3D figurine playground - pet, feed, and play with virtual figurines">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Figurine Playground - Scott Friedman">
+    <meta property="og:description" content="Interactive 3D figurine playground - pet, feed, and play with virtual figurines">
+    <meta property="og:image" content="https://scottfriedman.me/assets/og-image.png">
+    <meta property="og:url" content="https://scottfriedman.me/figurines.html">
+    <meta property="og:type" content="website">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Figurine Playground - Scott Friedman">
+    <meta name="twitter:description" content="Interactive 3D figurine playground - pet, feed, and play with virtual figurines">
+    <meta name="twitter:image" content="https://scottfriedman.me/assets/og-image.png">
+
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/figurines.css">
 </head>
 <body>
+    <a href="#figurines-container" class="skip-link">Skip to main content</a>
+
+    <!-- Status announcer for screen readers -->
+    <div id="status-announcer" aria-live="polite" class="visually-hidden"></div>
+
     <!-- Collaborative drawing canvas -->
     <canvas id="whiteboard"></canvas>
 
@@ -28,27 +50,27 @@
     </button>
 
     <!-- Subtle drawing toolbar -->
-    <div class="draw-toolbar">
-        <div class="toolbar-group sizes">
-            <button class="size-btn" data-size="2" title="Fine"><span></span></button>
-            <button class="size-btn active" data-size="4" title="Medium"><span></span></button>
-            <button class="size-btn" data-size="8" title="Thick"><span></span></button>
+    <div class="draw-toolbar" role="toolbar" aria-label="Drawing tools">
+        <div class="toolbar-group sizes" role="group" aria-label="Brush sizes">
+            <button class="size-btn" data-size="2" title="Fine" aria-label="Fine brush size" aria-pressed="false"><span></span></button>
+            <button class="size-btn active" data-size="4" title="Medium" aria-label="Medium brush size" aria-pressed="true"><span></span></button>
+            <button class="size-btn" data-size="8" title="Thick" aria-label="Thick brush size" aria-pressed="false"><span></span></button>
         </div>
         <div class="toolbar-divider"></div>
-        <div class="toolbar-group colors">
-            <button class="color-btn active" data-color="auto" title="Auto colors">
+        <div class="toolbar-group colors" role="group" aria-label="Colors">
+            <button class="color-btn active" data-color="auto" title="Auto colors" aria-label="Auto color mode" aria-pressed="true">
                 <span class="rainbow"></span>
             </button>
-            <button class="color-btn" data-color="#2e7d54" title="Emerald"></button>
-            <button class="color-btn" data-color="#428995" title="Ocean"></button>
-            <button class="color-btn" data-color="#805f8a" title="Plum"></button>
-            <button class="color-btn" data-color="#b55d77" title="Berry"></button>
-            <button class="color-btn" data-color="#cc6644" title="Sunset"></button>
-            <button class="color-btn" data-color="#c7a356" title="Gold"></button>
+            <button class="color-btn" data-color="#2e7d54" title="Emerald" aria-label="Emerald color" aria-pressed="false"></button>
+            <button class="color-btn" data-color="#428995" title="Ocean" aria-label="Ocean color" aria-pressed="false"></button>
+            <button class="color-btn" data-color="#805f8a" title="Plum" aria-label="Plum color" aria-pressed="false"></button>
+            <button class="color-btn" data-color="#b55d77" title="Berry" aria-label="Berry color" aria-pressed="false"></button>
+            <button class="color-btn" data-color="#cc6644" title="Sunset" aria-label="Sunset color" aria-pressed="false"></button>
+            <button class="color-btn" data-color="#c7a356" title="Gold" aria-label="Gold color" aria-pressed="false"></button>
         </div>
         <div class="toolbar-divider"></div>
-        <div class="toolbar-group tools">
-            <button class="tool-btn" data-tool="eraser" title="Eraser">
+        <div class="toolbar-group tools" role="group" aria-label="Tools">
+            <button class="tool-btn" data-tool="eraser" title="Eraser" aria-label="Eraser tool" aria-pressed="false">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M20 20H7L3 16c-.8-.8-.8-2 0-2.8L14.6 1.6c.8-.8 2-.8 2.8 0l5 5c.8.8.8 2 0 2.8L11 20"/>
                 </svg>
@@ -215,6 +237,7 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
+    <script src="js/firebase-config.js"></script>
     <script src="js/main.js"></script>
     <script src="js/figurines.js"></script>
 </body>

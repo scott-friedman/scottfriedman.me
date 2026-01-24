@@ -12,10 +12,29 @@
       gtag('config', 'G-097VQD41F8');
     </script>
     <title>Music Maker - Scott Friedman</title>
+
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Browser-based step sequencer - create beats with drums and melodies">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Music Maker - Scott Friedman">
+    <meta property="og:description" content="Browser-based step sequencer - create beats with drums and melodies">
+    <meta property="og:image" content="https://scottfriedman.me/assets/og-image.png">
+    <meta property="og:url" content="https://scottfriedman.me/music.html">
+    <meta property="og:type" content="website">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Music Maker - Scott Friedman">
+    <meta name="twitter:description" content="Browser-based step sequencer - create beats with drums and melodies">
+    <meta name="twitter:image" content="https://scottfriedman.me/assets/og-image.png">
+
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/music.css">
 </head>
 <body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
     <!-- Collaborative drawing canvas -->
     <canvas id="whiteboard"></canvas>
 
@@ -24,7 +43,7 @@
         <span class="toggle-icon">✎</span>
     </button>
 
-    <main>
+    <main id="main-content">
         <header>
             <a href="index.html" class="back-link">back to home</a>
             <h1>Music Maker</h1>
@@ -157,6 +176,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 
     <!-- Main site JS (for drawing) -->
+    <script src="js/firebase-config.js"></script>
     <script src="js/main.js"></script>
 
     <!-- Music Maker JS -->

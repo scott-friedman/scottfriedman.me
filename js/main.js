@@ -7,17 +7,46 @@
     'use strict';
 
     // ==========================================================================
-    // Firebase Configuration
+    // Configuration Constants
     // ==========================================================================
-    const FIREBASE_CONFIG = {
-        apiKey: "AIzaSyCFKStIkbW_omKXd7TQb3jUVuBJA4g3zqo",
-        authDomain: "scottfriedman-f400d.firebaseapp.com",
-        databaseURL: "https://scottfriedman-f400d-default-rtdb.firebaseio.com",
-        projectId: "scottfriedman-f400d",
-        storageBucket: "scottfriedman-f400d.firebasestorage.app",
-        messagingSenderId: "1046658110090",
-        appId: "1:1046658110090:web:49a24a0ff13b19cb111373"
+    const CONFIG = {
+        CANVAS_REFERENCE_WIDTH: 1200,
+        THROTTLE_MS: 16,  // ~60fps
+        MOBILE_DRAW_TIMEOUT_MS: 5000,
+        BRUSH_SIZES: { fine: 2, medium: 4, thick: 8 },
+        ERASER_MULTIPLIER: 4
     };
+
+    // ==========================================================================
+    // Utility Functions
+    // ==========================================================================
+
+    // Throttle helper for performance-sensitive operations
+    function throttle(func, limit) {
+        let inThrottle;
+        return function(...args) {
+            if (!inThrottle) {
+                func.apply(this, args);
+                inThrottle = true;
+                setTimeout(() => inThrottle = false, limit);
+            }
+        };
+    }
+
+    // ==========================================================================
+    // Firebase Configuration (uses shared config if available)
+    // ==========================================================================
+    const FIREBASE_CONFIG = (typeof getFirebaseConfig === 'function')
+        ? getFirebaseConfig('main')
+        : {
+            apiKey: "AIzaSyCFKStIkbW_omKXd7TQb3jUVuBJA4g3zqo",
+            authDomain: "scottfriedman-f400d.firebaseapp.com",
+            databaseURL: "https://scottfriedman-f400d-default-rtdb.firebaseio.com",
+            projectId: "scottfriedman-f400d",
+            storageBucket: "scottfriedman-f400d.firebasestorage.app",
+            messagingSenderId: "1046658110090",
+            appId: "1:1046658110090:web:49a24a0ff13b19cb111373"
+        };
 
     // Get page identifier for page-specific drawings
     function getPageId() {
@@ -31,7 +60,7 @@
     // ==========================================================================
     // Reference width for consistent cross-device drawings
     // Drawings are stored relative to this width and scaled on other devices
-    const REFERENCE_WIDTH = 1200;
+    const REFERENCE_WIDTH = CONFIG.CANVAS_REFERENCE_WIDTH;
 
     // Get current scale and offset for responsive drawing
     function getDrawingTransform() {
@@ -163,6 +192,9 @@
     let hasDrawn = false;
     let lastClearedTimestamp = 0;
 
+    // Track Firebase listeners for cleanup
+    const firebaseListeners = [];
+
     // Drawing settings
     let lineWidth = 4;
     let fixedColor = null;
@@ -225,14 +257,16 @@
             strokesRef = db.ref('strokes/' + pageId);
 
             // Load existing strokes and listen for new ones
-            strokesRef.on('child_added', (snapshot) => {
+            const strokesCallback = (snapshot) => {
                 const stroke = snapshot.val();
                 if (stroke && stroke.points) {
                     // Store locally for redrawing on resize
                     allStrokes.push(stroke);
                     drawStroke(stroke.points, stroke.color, stroke.width);
                 }
-            });
+            };
+            strokesRef.on('child_added', strokesCallback);
+            firebaseListeners.push({ ref: strokesRef, event: 'child_added', callback: strokesCallback });
 
             // Listen for canvas clear events (only respond to NEW clears after page load)
             const clearRef = db.ref('canvas_cleared/' + pageId);
@@ -240,14 +274,16 @@
             clearRef.once('value', (snapshot) => {
                 lastClearedTimestamp = snapshot.val() || 0;
                 // Now listen for future changes
-                clearRef.on('value', (snapshot) => {
+                const clearCallback = (snapshot) => {
                     const cleared = snapshot.val();
                     if (cleared && cleared > lastClearedTimestamp) {
                         allStrokes = [];  // Clear local strokes
                         ctx.clearRect(0, 0, canvas.width, canvas.height);
                         lastClearedTimestamp = cleared;
                     }
-                });
+                };
+                clearRef.on('value', clearCallback);
+                firebaseListeners.push({ ref: clearRef, event: 'value', callback: clearCallback });
             });
 
             console.log('Firebase connected for page:', pageId);
@@ -442,12 +478,12 @@
 
     function resetDrawModeTimeout() {
         clearTimeout(drawModeTimeout);
-        // Auto-exit draw mode after 5 seconds of inactivity
+        // Auto-exit draw mode after inactivity
         drawModeTimeout = setTimeout(() => {
             if (isMobile && !isDrawing) {
                 setDrawMode(false);
             }
-        }, 5000);
+        }, CONFIG.MOBILE_DRAW_TIMEOUT_MS);
     }
 
     if (mobileToggle) {
@@ -471,18 +507,28 @@
     });
     resizeObserver.observe(document.body);
 
+    // Throttled draw function for better performance
+    const throttledDraw = throttle(draw, CONFIG.THROTTLE_MS);
+
     // Mouse events
     canvas.addEventListener('mousedown', startDrawing);
-    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mousemove', throttledDraw);
     canvas.addEventListener('mouseup', stopDrawing);
     canvas.addEventListener('mouseout', stopDrawing);
 
     // Touch events
     canvas.addEventListener('touchstart', startDrawing, { passive: false });
-    canvas.addEventListener('touchmove', draw, { passive: false });
+    canvas.addEventListener('touchmove', throttledDraw, { passive: false });
     canvas.addEventListener('touchend', stopDrawing);
 
     initFirebase();
+
+    // Clean up Firebase listeners on page unload
+    window.addEventListener('beforeunload', () => {
+        firebaseListeners.forEach(({ ref, event, callback }) => {
+            ref.off(event, callback);
+        });
+    });
 
     // ==========================================================================
     // Toolbar Controls
@@ -491,8 +537,12 @@
     // Size buttons
     document.querySelectorAll('.size-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.size-btn').forEach(b => {
+                b.classList.remove('active');
+                b.setAttribute('aria-pressed', 'false');
+            });
             btn.classList.add('active');
+            btn.setAttribute('aria-pressed', 'true');
             lineWidth = parseInt(btn.dataset.size);
         });
     });
@@ -500,8 +550,12 @@
     // Color buttons
     document.querySelectorAll('.color-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.color-btn').forEach(b => {
+                b.classList.remove('active');
+                b.setAttribute('aria-pressed', 'false');
+            });
             btn.classList.add('active');
+            btn.setAttribute('aria-pressed', 'true');
 
             const color = btn.dataset.color;
             if (color === 'auto') {
@@ -514,7 +568,11 @@
 
             // Turn off eraser when selecting color
             isEraser = false;
-            document.querySelector('[data-tool="eraser"]')?.classList.remove('active');
+            const eraserBtn = document.querySelector('[data-tool="eraser"]');
+            if (eraserBtn) {
+                eraserBtn.classList.remove('active');
+                eraserBtn.setAttribute('aria-pressed', 'false');
+            }
         });
     });
 
@@ -526,6 +584,7 @@
             if (tool === 'eraser') {
                 isEraser = !isEraser;
                 btn.classList.toggle('active', isEraser);
+                btn.setAttribute('aria-pressed', isEraser ? 'true' : 'false');
             }
         });
     });
@@ -590,7 +649,7 @@
         switch (type) {
             case 'mixcloud':
             case 'bandcamp':
-                embedHtml = `<iframe width="100%" height="120" src="${escapeHtml(safeUrl)}" frameborder="0" allow="autoplay"></iframe>`;
+                embedHtml = `<iframe width="100%" height="120" src="${escapeHtml(safeUrl)}" frameborder="0" allow="autoplay" loading="lazy"></iframe>`;
                 break;
 
             case 'dropbox':

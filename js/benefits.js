@@ -10,15 +10,18 @@
     const WORKER_URL = 'https://benefits-api.s-friedman.workers.dev';
     const HISTORY_LIMIT = 20;
 
-    const FIREBASE_CONFIG = {
-        apiKey: "AIzaSyCFKStIkbW_omKXd7TQb3jUVuBJA4g3zqo",
-        authDomain: "scottfriedman-f400d.firebaseapp.com",
-        databaseURL: "https://scottfriedman-f400d-default-rtdb.firebaseio.com",
-        projectId: "scottfriedman-f400d",
-        storageBucket: "scottfriedman-f400d.firebasestorage.app",
-        messagingSenderId: "1046658110090",
-        appId: "1:1046658110090:web:49a24a0ff13b19cb111373"
-    };
+    // Firebase Configuration (uses shared config if available)
+    const FIREBASE_CONFIG = (typeof getFirebaseConfig === 'function')
+        ? getFirebaseConfig('main')
+        : {
+            apiKey: "AIzaSyCFKStIkbW_omKXd7TQb3jUVuBJA4g3zqo",
+            authDomain: "scottfriedman-f400d.firebaseapp.com",
+            databaseURL: "https://scottfriedman-f400d-default-rtdb.firebaseio.com",
+            projectId: "scottfriedman-f400d",
+            storageBucket: "scottfriedman-f400d.firebasestorage.app",
+            messagingSenderId: "1046658110090",
+            appId: "1:1046658110090:web:49a24a0ff13b19cb111373"
+        };
 
     // DOM elements
     const queryInput = document.getElementById('query-input');
