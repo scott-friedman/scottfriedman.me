@@ -17,6 +17,22 @@
     --error: #ff6b6b;
 }
 
+/* Accessibility */
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    padding: 8px;
+    background: var(--bg);
+    color: var(--text);
+    z-index: 1000;
+    text-decoration: none;
+}
+
+.skip-link:focus {
+    top: 0;
+}
+
 * {
     box-sizing: border-box;
     margin: 0;
