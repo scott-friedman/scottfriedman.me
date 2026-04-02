@@ -556,7 +556,7 @@ body.dashboard-page main.dashboard-fullwidth * {
 
 .charts-row {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 1.75rem;
     flex-shrink: 0;
 }
@@ -840,14 +840,6 @@ body.dashboard-page main.dashboard-fullwidth * {
    ========================================================================== */
 
 @media (max-width: 1000px) {
-    .charts-row {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-    .chart-card:last-child {
-        grid-column: 1 / -1;
-    }
-
     .stats-achievements-grid {
         flex-wrap: wrap;
     }
@@ -911,10 +903,6 @@ body.dashboard-page main.dashboard-fullwidth * {
 
     .chart-card {
         min-height: 180px;
-    }
-
-    .chart-card:last-child {
-        grid-column: auto;
     }
 
     .stats-achievements-grid {

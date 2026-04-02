@@ -67,8 +67,7 @@
     };
 
     // Chart instances
-    let visitsChart = null;
-    let cyclesChart = null;
+    let activityChart = null;
     let weightChart = null;
 
     // Store history data globally for re-rendering
@@ -77,8 +76,7 @@
 
     // Current time periods for each chart
     const chartPeriods = {
-        visits: 14,
-        cycles: 14,
+        activity: 14,
         weight: 14
     };
 
@@ -182,10 +180,6 @@
             return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         }
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    }
-
-    function formatTooltipDate(dateLabel) {
-        return dateLabel;
     }
 
     // Get dynamic tagline based on activity
@@ -610,24 +604,31 @@
                 mode: 'index'
             },
             plugins: {
-                legend: { display: false },
+                legend: {
+                    display: chartType === 'activity',
+                    position: 'top',
+                    labels: {
+                        boxWidth: 10,
+                        padding: 12,
+                        font: { size: 10 },
+                        usePointStyle: true
+                    }
+                },
                 tooltip: {
                     backgroundColor: 'rgba(45, 41, 38, 0.95)',
                     titleFont: { size: 13, weight: '600' },
                     bodyFont: { size: 12 },
                     padding: 12,
                     cornerRadius: 8,
-                    displayColors: false,
+                    displayColors: chartType === 'activity',
                     callbacks: {
-                        title: (items) => formatTooltipDate(items[0].label),
                         label: (context) => {
                             const value = context.parsed.y;
-                            if (context.dataset.label === 'Average') {
-                                return `Avg: ${value.toFixed(1)}`;
-                            }
+                            const label = context.dataset.label;
                             if (chartType === 'weight') return `${value.toFixed(1)} lbs`;
-                            if (chartType === 'visits') return `${value} visit${value !== 1 ? 's' : ''}`;
-                            return `${value} cycle${value !== 1 ? 's' : ''}`;
+                            if (label === 'Visits') return `${value} visit${value !== 1 ? 's' : ''}`;
+                            if (label === 'Cycles') return `${value} cycle${value !== 1 ? 's' : ''}`;
+                            return `${value}`;
                         }
                     }
                 }
@@ -690,119 +691,60 @@
         return validData.reduce((a, b) => a + b, 0) / validData.length;
     }
 
-    // Initialize/update visits chart
-    function updateVisitsChart(period) {
-        const ctx = document.getElementById('visits-chart');
+    // Initialize/update combined activity chart (visits + cycles)
+    function updateActivityChart(period) {
+        const ctx = document.getElementById('activity-chart');
         if (!ctx) return;
 
         const dates = getDateRange(period);
         const labels = dates.map(d => formatDate(d, period));
 
-        // Fixed: properly handle visits data, treat 0 as valid
-        const data = dates.map(d => {
-            const dayData = historyData[d];
-            return typeof dayData?.visits === 'number' ? dayData.visits : 0;
+        const visitsData = dates.map(d => {
+            const v = historyData[d]?.visits;
+            return validateMetric(typeof v === 'number' ? v : 0, 'visits') ?? 0;
         });
 
-        const average = calculateAverage(data);
-        const avgLine = new Array(data.length).fill(average);
-
-        // Use bar chart for periods <= 30 days
-        const useBar = period !== 'all' && period <= 30;
-
-        const datasets = [{
-            label: 'Visits',
-            data: data,
-            backgroundColor: useBar ? chartColors.visits : chartColors.visitsLight,
-            borderColor: chartColors.visits,
-            borderWidth: useBar ? 0 : 2,
-            fill: !useBar,
-            tension: 0.3
-        }];
-
-        // Add average line for longer periods
-        if (!useBar && data.length > 7) {
-            datasets.push({
-                label: 'Average',
-                data: avgLine,
-                borderColor: chartColors.average,
-                borderWidth: 1,
-                borderDash: [5, 5],
-                fill: false,
-                pointRadius: 0,
-                tension: 0
-            });
-        }
-
-        if (visitsChart) {
-            visitsChart.config.type = useBar ? 'bar' : 'line';
-            visitsChart.data.labels = labels;
-            visitsChart.data.datasets = datasets;
-            visitsChart.options = getChartOptions(period, 'visits');
-            visitsChart.update();
-            return;
-        }
-
-        visitsChart = new Chart(ctx, {
-            type: useBar ? 'bar' : 'line',
-            data: { labels, datasets },
-            options: getChartOptions(period, 'visits')
+        const cyclesData = dates.map(d => {
+            const c = historyData[d]?.cycles;
+            return validateMetric(typeof c === 'number' ? c : 0, 'cycles') ?? 0;
         });
-    }
-
-    // Initialize/update cycles chart
-    function updateCyclesChart(period) {
-        const ctx = document.getElementById('cycles-chart');
-        if (!ctx) return;
-
-        const dates = getDateRange(period);
-        const labels = dates.map(d => formatDate(d, period));
-        const data = dates.map(d => {
-            const dayData = historyData[d];
-            return typeof dayData?.cycles === 'number' ? dayData.cycles : 0;
-        });
-
-        const average = calculateAverage(data);
-        const avgLine = new Array(data.length).fill(average);
 
         const useBar = period !== 'all' && period <= 30;
 
-        const datasets = [{
-            label: 'Cycles',
-            data: data,
-            backgroundColor: useBar ? chartColors.cycles : chartColors.cyclesLight,
-            borderColor: chartColors.cycles,
-            borderWidth: useBar ? 0 : 2,
-            fill: !useBar,
-            tension: 0.3
-        }];
+        const datasets = [
+            {
+                label: 'Visits',
+                data: visitsData,
+                backgroundColor: useBar ? chartColors.visits : chartColors.visitsLight,
+                borderColor: chartColors.visits,
+                borderWidth: useBar ? 0 : 2,
+                fill: !useBar,
+                tension: 0.3
+            },
+            {
+                label: 'Cycles',
+                data: cyclesData,
+                backgroundColor: useBar ? chartColors.cycles : chartColors.cyclesLight,
+                borderColor: chartColors.cycles,
+                borderWidth: useBar ? 0 : 2,
+                fill: !useBar,
+                tension: 0.3
+            }
+        ];
 
-        if (!useBar && data.length > 7) {
-            datasets.push({
-                label: 'Average',
-                data: avgLine,
-                borderColor: chartColors.average,
-                borderWidth: 1,
-                borderDash: [5, 5],
-                fill: false,
-                pointRadius: 0,
-                tension: 0
-            });
-        }
-
-        if (cyclesChart) {
-            cyclesChart.config.type = useBar ? 'bar' : 'line';
-            cyclesChart.data.labels = labels;
-            cyclesChart.data.datasets = datasets;
-            cyclesChart.options = getChartOptions(period, 'cycles');
-            cyclesChart.update();
+        if (activityChart) {
+            activityChart.config.type = useBar ? 'bar' : 'line';
+            activityChart.data.labels = labels;
+            activityChart.data.datasets = datasets;
+            activityChart.options = getChartOptions(period, 'activity');
+            activityChart.update();
             return;
         }
 
-        cyclesChart = new Chart(ctx, {
+        activityChart = new Chart(ctx, {
             type: useBar ? 'bar' : 'line',
             data: { labels, datasets },
-            options: getChartOptions(period, 'cycles')
+            options: getChartOptions(period, 'activity')
         });
     }
 
@@ -906,10 +848,8 @@
                     const period = days === 'all' ? 'all' : parseInt(days);
                     chartPeriods[chartType] = period;
 
-                    if (chartType === 'visits') {
-                        updateVisitsChart(period);
-                    } else if (chartType === 'cycles') {
-                        updateCyclesChart(period);
+                    if (chartType === 'activity') {
+                        updateActivityChart(period);
                     } else if (chartType === 'weight') {
                         updateWeightChart(period);
                     }
@@ -963,8 +903,7 @@
         const db = initFirebase();
         db.ref('litterrobot/history').once('value').then((snapshot) => {
             historyData = snapshot.val() || {};
-            updateVisitsChart(chartPeriods.visits);
-            updateCyclesChart(chartPeriods.cycles);
+            updateActivityChart(chartPeriods.activity);
             updateWeightChart(chartPeriods.weight);
             updateFunFacts();
             hideError();
@@ -988,8 +927,7 @@
 
         db.ref('litterrobot/history').once('value').then((snapshot) => {
             historyData = snapshot.val() || {};
-            updateVisitsChart(chartPeriods.visits);
-            updateCyclesChart(chartPeriods.cycles);
+            updateActivityChart(chartPeriods.activity);
             updateWeightChart(chartPeriods.weight);
             updateFunFacts();
         }).catch(err => {

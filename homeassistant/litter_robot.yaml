@@ -32,11 +32,21 @@
 
 # Automation 1: Litter Robot Status Logger
 # ID: '1745593508763'
-# Fixed to catch visits even when HA skips the 'cd' (cat detected) state
+#
+# VISIT DEBOUNCE: The cat sensor bounces (rdy↔cd/cst) multiple times during
+# a single visit, inflating the count. We track last_visit time and require
+# 3 minutes between counted visits. This filters sensor flutter (happens in
+# seconds) while still catching genuine repeat visits — important because
+# frequent visits can indicate bladder/urinary issues.
+#
+# REQUIRES: input_datetime.litter_robot_last_visit helper entity
+#   - Add to HA via Settings > Devices & Services > Helpers > Date and/or time
+#   - Name: "Litter Robot Last Visit"
+#   - Type: Date and time
 #
 # - id: '1745593508763'
 #   alias: Litter Robot Status Logger
-#   description: 'Track visits and cycles reliably - fixed to catch missing cd states'
+#   description: 'Track visits and cycles with debounce to prevent sensor flutter overcounting'
 #   triggers:
 #     - trigger: state
 #       entity_id: sensor.starshit_status_code
@@ -60,10 +70,20 @@
 #         - conditions:
 #             - condition: trigger
 #               id: visit_start
+#             - condition: template
+#               value_template: >
+#                 {% set last = states('input_datetime.litter_robot_last_visit') %}
+#                 {{ last in ['unknown', 'unavailable', 'None', '']
+#                    or (now() - (last | as_datetime | as_local)).total_seconds() > 180 }}
 #           sequence:
 #             - action: counter.increment
 #               target:
 #                 entity_id: counter.litter_robot_counter
+#             - action: input_datetime.set_datetime
+#               target:
+#                 entity_id: input_datetime.litter_robot_last_visit
+#               data:
+#                 datetime: '{{ now().strftime(''%Y-%m-%d %H:%M:%S'') }}'
 #         - conditions:
 #             - condition: trigger
 #               id: cycle_complete
@@ -199,6 +219,20 @@
 # HomeAssistant sometimes skips the 'cd' (cat detected) state and goes
 # directly to 'cst' (cat sensor timing). The updated automation now triggers
 # on EITHER 'cd' OR 'cst' when transitioning from idle states (rdy/dfs).
+#
+# ROOT CAUSE OF INFLATED VISITS (fixed 2026-04-02):
+# The cat sensor bounces between rdy↔cd/cst multiple times during a single
+# visit. Each bounce was counted as a separate visit, causing spikes of
+# 15-29 visits/day when cycles showed only 3-5 (the real visit count).
+# Fix: 3-minute debounce via input_datetime.litter_robot_last_visit.
+# This preserves tracking of genuine repeat visits (health monitoring)
+# while filtering sensor flutter (happens within seconds).
+#
+# HELPER ENTITIES REQUIRED:
+# - input_datetime.litter_robot_last_cycle  (Date and time)
+# - input_datetime.litter_robot_last_visit  (Date and time) — NEW
+# - counter.litter_robot_counter            (resets daily)
+# - counter.litter_robot_cycle_count        (resets daily)
 #
 # SENSOR NAME NOTE:
 # Verify these are the same entity or update to be consistent:
