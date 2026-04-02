@@ -77,6 +77,8 @@
       "$pageId": {
         // Validate page ID is a known page
         ".validate": "$pageId.matches(/^[a-zA-Z0-9_-]+$/)",
+        // Admin can remove all strokes for a page (clear canvas)
+        ".write": "auth != null && root.child('admins').child(auth.uid).exists() && !newData.exists()",
         "$strokeId": {
           ".write": true,
           ".validate": "newData.hasChildren(['points', 'width', 'timestamp']) &&
