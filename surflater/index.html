@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Unlisted band page: no analytics, no indexing, not in sitemap.
+         This file is a content-free shell — everything about the band lives
+         in RTDB behind a password-derived slug (see js/bandnotes.js). -->
+    <meta name="robots" content="noindex,nofollow">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#0e0e0e">
+    <title>surf later</title>
+
+    <link rel="manifest" href="/surflater/manifest.json">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="surf later">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Pirata+One&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/bandnotes.css">
+</head>
+<body class="bandnotes-page">
+    <main class="bandnotes">
+        <header class="masthead">
+            <h1>surf later</h1>
+            <p class="tagline" id="tagline"></p>
+        </header>
+
+        <div class="banner" id="banner" hidden></div>
+
+        <section class="gate" id="gate-section" hidden>
+            <p>band members only.</p>
+            <p class="gate-error" id="gate-message" hidden></p>
+            <form id="gate-form">
+                <!-- Hidden username gives password managers a stable credential. -->
+                <input type="text" name="username" value="surflater" autocomplete="username"
+                       hidden aria-hidden="true" tabindex="-1">
+                <input type="password" id="gate-input" autocomplete="current-password"
+                       autocapitalize="off" spellcheck="false" placeholder="password">
+                <button type="submit">open</button>
+            </form>
+        </section>
+
+        <div id="app" hidden>
+            <nav class="chip-nav" id="chip-nav" aria-label="Sections">
+                <a href="#setlist-section">set</a>
+                <a href="#sched-section">sched</a>
+                <a href="#songs-section">songs</a>
+                <a href="#board-section">board</a>
+                <a href="#info-section">info</a>
+                <a href="#gallery-section">art</a>
+            </nav>
+
+            <section id="setlist-section">
+                <h2>set list</h2>
+                <div id="setlist-grid" class="setlist-grid"></div>
+                <details class="legend">
+                    <summary>legend</summary>
+                    <div id="legend-body"></div>
+                </details>
+                <div id="add-song-area"></div>
+            </section>
+
+            <section id="sched-section">
+                <h2>availability</h2>
+                <div id="availability-cards"></div>
+                <h2>agenda</h2>
+                <div id="agenda-area"></div>
+                <h2>goals</h2>
+                <div id="goals-area"></div>
+            </section>
+
+            <section id="songs-section">
+                <h2>songs</h2>
+                <div id="songs-list"></div>
+                <div id="new-song-area"></div>
+            </section>
+
+            <section id="board-section">
+                <h2>board</h2>
+                <div id="messages-list"></div>
+                <form id="message-form">
+                    <input type="text" id="message-input" maxlength="2000"
+                           autocomplete="off" placeholder="say something">
+                    <button type="submit">send</button>
+                </form>
+            </section>
+
+            <section id="info-section">
+                <h2>info</h2>
+                <div id="info-area"></div>
+                <h2>venues</h2>
+                <div id="venues-list"></div>
+            </section>
+
+            <section id="gallery-section">
+                <h2>art</h2>
+                <div id="gallery-grid"></div>
+            </section>
+
+            <footer class="page-footer">
+                <a href="#" id="switch-member"></a>
+                <a href="#" id="reset-token">log out</a>
+            </footer>
+        </div>
+    </main>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="/js/firebase-config.js"></script>
+    <script src="/js/bandnotes.js"></script>
+</body>
+</html>

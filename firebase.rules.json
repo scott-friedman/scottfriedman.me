@@ -276,6 +276,145 @@
     },
 
     // ========================================
+    // BAND NOTES - capability-URL private area (/surflater page).
+    // The path segment IS the secret: slug = first 32 hex chars of
+    // SHA-256('surflater.scottfriedman.ooo:v1:' + password), derived
+    // client-side (same scheme as the workouts page). NO .read/.write here
+    // at the parent — that would let anyone enumerate every slug. Access is
+    // granted only at a concrete well-formed $slug. Trust model: anyone
+    // holding the slug is a band member and may edit or delete anything,
+    // exactly like the shared Google Doc this replaces — do not "harden"
+    // per-node writes without revisiting that decision.
+    // ========================================
+    "bandnotes": {
+      "$slug": {
+        ".read": "$slug.matches(/^[0-9a-f]{32}$/)",
+        ".write": "$slug.matches(/^[0-9a-f]{32}$/)",
+
+        "meta": {
+          ".validate": "newData.hasChildren(['bandName'])",
+          "bandName": { ".validate": "newData.isString() && newData.val().length <= 60" },
+          "tagline": { ".validate": "newData.isString() && newData.val().length <= 300" },
+          "practiceSpace": { ".validate": "newData.isString() && newData.val().length <= 300" },
+          "instagramUrl": { ".validate": "newData.isString() && newData.val().beginsWith('https://') && newData.val().length <= 300" },
+          "playlistUrl": { ".validate": "newData.isString() && newData.val().beginsWith('https://') && newData.val().length <= 300" },
+          "$other": { ".validate": false }
+        },
+
+        "members": {
+          "$memberId": {
+            ".validate": "newData.hasChildren(['name', 'order'])",
+            "name": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 60" },
+            "role": { ".validate": "newData.isString() && newData.val().length <= 60" },
+            "email": { ".validate": "newData.isString() && newData.val().length <= 120" },
+            "order": { ".validate": "newData.isNumber()" },
+            "$other": { ".validate": false }
+          }
+        },
+
+        "availability": {
+          "$memberId": {
+            ".validate": "newData.hasChildren(['text', 'updatedAt'])",
+            "text": { ".validate": "newData.isString() && newData.val().length <= 2000" },
+            "updatedAt": { ".validate": "newData.isNumber() && newData.val() <= now + 300000" },
+            "$other": { ".validate": false }
+          }
+        },
+
+        "agenda": {
+          ".validate": "newData.hasChildren(['text', 'updatedAt'])",
+          "text": { ".validate": "newData.isString() && newData.val().length <= 8000" },
+          "updatedAt": { ".validate": "newData.isNumber() && newData.val() <= now + 300000" },
+          "$other": { ".validate": false }
+        },
+
+        "goals": {
+          "$goalId": {
+            ".validate": "newData.hasChildren(['text', 'done', 'order'])",
+            "text": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 300" },
+            "done": { ".validate": "newData.isBoolean()" },
+            "order": { ".validate": "newData.isNumber()" },
+            "$other": { ".validate": false }
+          }
+        },
+
+        "setlist": {
+          "$rowId": {
+            ".validate": "newData.hasChildren(['name', 'order'])",
+            "name": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 100" },
+            "band": { ".validate": "newData.isString() && newData.val().length <= 100" },
+            "bpm": { ".validate": "newData.isNumber() && newData.val() >= 20 && newData.val() <= 400" },
+            "order": { ".validate": "newData.isNumber()" },
+            // Readiness legend from the band doc: a checkmark is stored as
+            // '100', X as 'x'; an empty cell is an absent node (cleared by
+            // writing null).
+            "parts": {
+              "drums": { ".validate": "newData.isString() && newData.val().matches(/^(x|25|50|60|70|80|90|100)$/)" },
+              "bass": { ".validate": "newData.isString() && newData.val().matches(/^(x|25|50|60|70|80|90|100)$/)" },
+              "gtr1": { ".validate": "newData.isString() && newData.val().matches(/^(x|25|50|60|70|80|90|100)$/)" },
+              "gtr2": { ".validate": "newData.isString() && newData.val().matches(/^(x|25|50|60|70|80|90|100)$/)" },
+              "vox": { ".validate": "newData.isString() && newData.val().matches(/^(x|25|50|60|70|80|90|100)$/)" },
+              "$other": { ".validate": false }
+            },
+            "$other": { ".validate": false }
+          }
+        },
+
+        "songs": {
+          "$songId": {
+            ".validate": "newData.hasChildren(['title', 'body', 'order', 'updatedAt'])",
+            "title": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 120" },
+            "meta": { ".validate": "newData.isString() && newData.val().length <= 500" },
+            "body": { ".validate": "newData.isString() && newData.val().length <= 20000" },
+            "order": { ".validate": "newData.isNumber()" },
+            "updatedAt": { ".validate": "newData.isNumber() && newData.val() <= now + 300000" },
+            "$other": { ".validate": false }
+          }
+        },
+
+        "venues": {
+          "$venueId": {
+            ".validate": "newData.hasChildren(['name', 'order'])",
+            "name": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 120" },
+            "location": { ".validate": "newData.isString() && newData.val().length <= 200" },
+            "info": { ".validate": "newData.isString() && newData.val().length <= 1000" },
+            "order": { ".validate": "newData.isNumber()" },
+            "$other": { ".validate": false }
+          }
+        },
+
+        // Gallery metadata (tiny, read eagerly) is deliberately split from
+        // the base64 blobs in galleryData (fetched one node at a time as
+        // images scroll into view) so no listener ever pulls every image.
+        "gallery": {
+          "$imageId": {
+            ".validate": "newData.hasChildren(['title', 'order'])",
+            "title": { ".validate": "newData.isString() && newData.val().length <= 120" },
+            "order": { ".validate": "newData.isNumber()" },
+            "$other": { ".validate": false }
+          }
+        },
+        "galleryData": {
+          "$imageId": {
+            ".validate": "newData.isString() && newData.val().beginsWith('data:image/') && newData.val().length <= 1500000"
+          }
+        },
+
+        "messages": {
+          "$messageId": {
+            ".validate": "newData.hasChildren(['name', 'text', 'ts'])",
+            "name": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 60" },
+            "text": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 2000" },
+            "ts": { ".validate": "newData.isNumber() && newData.val() <= now + 300000" },
+            "$other": { ".validate": false }
+          }
+        },
+
+        "$other": { ".validate": false }
+      }
+    },
+
+    // ========================================
     // DEFAULT - Deny all other paths
     // ========================================
     "$other": {

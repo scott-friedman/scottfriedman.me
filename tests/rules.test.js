@@ -317,6 +317,107 @@ test('anon cannot read admins or admin_config', async () => {
     await assertFails(get(ref(anonDb(), 'admin_config')));
 });
 
+// ---------- bandnotes ----------
+
+// The slug IS the credential (first 32 hex of SHA-256(salt + password)),
+// so these tests pin two properties above all: the parent path must never
+// be enumerable, and a well-formed slug grants full read/write (the
+// intentional Google-Doc-equivalent trust model).
+const BAND_SLUG = 'a'.repeat(32);
+
+const validBandSeed = () => ({
+    meta: {
+        bandName: 'test band',
+        practiceSpace: '123 Test St',
+        instagramUrl: 'https://www.instagram.com/testband',
+    },
+    members: {
+        scott: { name: 'Scott', role: 'bass', email: 'scott@example.com', order: 0 },
+    },
+    availability: {
+        scott: { text: 'free most nights', updatedAt: Date.now() },
+    },
+    agenda: { text: 'practice the set', updatedAt: Date.now() },
+    goals: { g1: { text: 'book a show', done: false, order: 0 } },
+    setlist: {
+        boxcar: {
+            name: 'Boxcar', band: 'Jawbreaker', bpm: 155, order: 0,
+            parts: { drums: '100', bass: '100', gtr1: '100', vox: '100' },
+        },
+    },
+    songs: {
+        thegray: { title: 'The Gray', meta: '135 BPM', body: 'lyrics here', order: 0, updatedAt: Date.now() },
+    },
+    venues: { ralphs: { name: 'Ralphs', location: 'Worcester MA', info: 'diner car', order: 0 } },
+    gallery: { logo: { title: 'logo', order: 0 } },
+    galleryData: { logo: 'data:image/webp;base64,AAAA' },
+    messages: { m1: { name: 'Scott', text: 'first', ts: Date.now() } },
+});
+
+test('bandnotes parent is not enumerable (the security-critical property)', async () => {
+    await assertFails(get(ref(anonDb(), 'bandnotes')));
+    await assertFails(get(ref(adminDb(), 'bandnotes')));
+});
+
+test('malformed slugs are denied read and write', async () => {
+    await assertFails(get(ref(anonDb(), 'bandnotes/not-a-hex-slug')));
+    await assertFails(set(ref(anonDb(), 'bandnotes/not-a-hex-slug/meta'),
+        { bandName: 'x' }));
+    // Uppercase hex is not a valid slug (deriveSlug emits lowercase)
+    await assertFails(get(ref(anonDb(), `bandnotes/${'A'.repeat(32)}`)));
+    // Too short
+    await assertFails(get(ref(anonDb(), `bandnotes/${'a'.repeat(31)}`)));
+});
+
+test('probe read of an empty valid slug succeeds (the wrong-password UX path)', async () => {
+    await assertSucceeds(get(ref(anonDb(), `bandnotes/${'b'.repeat(32)}/meta`)));
+});
+
+test('a full seed-shaped PUT at a valid slug succeeds (the seeder path)', async () => {
+    await assertSucceeds(set(ref(anonDb(), `bandnotes/${BAND_SLUG}`), validBandSeed()));
+});
+
+test('setlist cells take only legend values; clearing works', async () => {
+    await set(ref(anonDb(), `bandnotes/${BAND_SLUG}`), validBandSeed());
+    const cell = (part) => ref(anonDb(), `bandnotes/${BAND_SLUG}/setlist/boxcar/parts/${part}`);
+    await assertSucceeds(set(cell('bass'), '80'));
+    await assertFails(set(cell('bass'), '95'));
+    await assertFails(set(cell('bass'), '✅')); // the emoji itself is not a value
+    await assertFails(set(cell('keys'), '80'));     // no such instrument column
+    await assertSucceeds(set(cell('bass'), null));  // empty cell = absent node
+});
+
+test('junk children under a slug are rejected', async () => {
+    await assertFails(set(ref(anonDb(), `bandnotes/${BAND_SLUG}/evil`), true));
+});
+
+test('messages are shape-checked and clock-skew-bounded', async () => {
+    const msgs = ref(anonDb(), `bandnotes/${BAND_SLUG}/messages`);
+    await assertSucceeds(push(msgs, { name: 'Gabe', text: 'thursday works', ts: Date.now() }));
+    await assertFails(push(msgs, { name: 'Gabe', text: 'x', ts: Date.now(), admin: true }));
+    await assertFails(push(msgs, { name: 'Gabe', text: 'x', ts: Date.now() + 600000 }));
+    await assertFails(push(msgs, { name: '', text: 'anonymous', ts: Date.now() }));
+});
+
+test('song bodies are capped and require updatedAt', async () => {
+    const song = ref(anonDb(), `bandnotes/${BAND_SLUG}/songs/newsong`);
+    await assertFails(set(song, {
+        title: 'War and Peace', body: 'x'.repeat(20001), order: 1, updatedAt: Date.now(),
+    }));
+    await assertFails(set(song, { title: 'No timestamp', body: 'x', order: 1 }));
+});
+
+test('galleryData must be a data:image URL', async () => {
+    const img = ref(anonDb(), `bandnotes/${BAND_SLUG}/galleryData/sneaky`);
+    await assertFails(set(img, 'https://evil.example/img.png'));
+    await assertSucceeds(set(img, 'data:image/webp;base64,AAAA'));
+});
+
+test('a slug-holder can delete the whole tree (intentional: Google-Doc trust model)', async () => {
+    await set(ref(anonDb(), `bandnotes/${BAND_SLUG}`), validBandSeed());
+    await assertSucceeds(remove(ref(anonDb(), `bandnotes/${BAND_SLUG}`)));
+});
+
 // ---------- default deny ----------
 
 test('unknown paths are denied', async () => {

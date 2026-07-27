@@ -24,5 +24,10 @@ stickynotes-plan.md
 # and served at scottfriedman.ooo, so keep this local
 IMPROVEMENTS.md
 
+# Band notes seed content — lyrics, member emails, and the shared password;
+# lives only in RTDB (seeded via scripts/seed-bandnotes.mjs), never in the repo
+scripts/bandnotes-seed.json
+assets/bandnotes/
+
 # Workout-logger golden contract fixtures — personal training data; source of truth is the me repo
 tests/fixtures/app-sessions/

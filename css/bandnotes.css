@@ -1,0 +1,796 @@
+/* ==========================================================================
+   Surf Later band page — unlisted, phone-first, always dark (punk zine).
+   Builds on css/style.css; remaps its tokens unconditionally (no light mode).
+   ========================================================================== */
+
+body.bandnotes-page {
+    --black: #f0eae0;          /* text on dark */
+    --gray: #9a948a;
+    --gray-light: #6b665e;
+    --light: #2a2724;
+    --white: #0e0e0e;          /* page background */
+    --accent: #e23b3b;         /* blood red */
+    --accent-light: #ff6b57;
+    --warm: #e0a13a;
+    --warm-light: #8a6a2a;
+    --pencil: rgba(240, 234, 224, 0.5);
+
+    font-size: 17px;
+    line-height: 1.5;
+    background: var(--white);
+    color: var(--black);
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* style.css disables pointer events on main for the drawing canvas,
+   and styles bare <section> with hover washes that stick on iOS taps. */
+main.bandnotes {
+    pointer-events: auto;
+    padding: 1rem 1rem 4rem;
+    max-width: 640px;
+    margin: 0 auto;
+}
+
+main.bandnotes a,
+main.bandnotes button,
+main.bandnotes input,
+main.bandnotes textarea,
+main.bandnotes details,
+main.bandnotes summary,
+main.bandnotes label {
+    pointer-events: auto;
+}
+
+body.bandnotes-page section {
+    padding: 0;
+    margin: 0 0 2.2rem;
+}
+
+body.bandnotes-page section:hover {
+    background: transparent;
+}
+
+/* ─── Type ───────────────────────────────────────────────────────── */
+
+.bandnotes h1,
+.bandnotes h2 {
+    font-family: 'Pirata One', 'Times New Roman', serif;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+}
+
+.masthead {
+    text-align: center;
+    margin: 0.5rem 0 1rem;
+}
+
+.masthead h1 {
+    font-size: 3.4rem;
+    line-height: 1;
+    color: var(--black);
+    text-shadow: 3px 3px 0 var(--accent);
+}
+
+.masthead .tagline {
+    color: var(--gray);
+    font-size: 0.85rem;
+    font-style: italic;
+    margin-top: 0.4rem;
+}
+
+.bandnotes h2 {
+    font-size: 1.7rem;
+    color: var(--accent-light);
+    margin: 0 0 0.6rem;
+    border-bottom: 2px solid var(--light);
+    padding-bottom: 0.15rem;
+}
+
+/* ─── Buttons / forms ────────────────────────────────────────────── */
+
+.bandnotes button,
+.bandnotes input,
+.bandnotes textarea {
+    font: inherit;
+    color: var(--black);
+    background: var(--light);
+    border: 1px solid var(--gray-light);
+    border-radius: 8px;
+    padding: 0.5rem 0.9rem;
+    min-height: 44px;
+}
+
+.bandnotes textarea {
+    width: 100%;
+    min-height: 7rem;
+    line-height: 1.45;
+}
+
+.bandnotes button {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.bandnotes .ghost-btn {
+    background: transparent;
+    border: 1px dashed var(--gray-light);
+    color: var(--gray);
+    font-weight: 400;
+}
+
+.bandnotes .danger-btn {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent-light);
+}
+
+.bandnotes input::placeholder,
+.bandnotes textarea::placeholder {
+    color: var(--gray-light);
+}
+
+/* ─── Gate + banner ──────────────────────────────────────────────── */
+
+.gate {
+    text-align: center;
+    padding: 2rem 0;
+}
+
+.gate form {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    margin-top: 1rem;
+}
+
+.gate input[type="password"] {
+    flex: 1;
+    max-width: 240px;
+}
+
+.gate-error {
+    color: var(--accent-light);
+    margin-top: 0.5rem;
+}
+
+.banner {
+    background: var(--warm-light);
+    color: var(--black);
+    border-radius: 8px;
+    padding: 0.6rem 0.9rem;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+
+/* ─── Section nav ────────────────────────────────────────────────── */
+
+.chip-nav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    gap: 0.4rem;
+    overflow-x: auto;
+    padding: 0.5rem 0;
+    margin-bottom: 1.2rem;
+    background: var(--white);
+    border-bottom: 1px solid var(--light);
+}
+
+.chip-nav a {
+    flex: 0 0 auto;
+    padding: 0.35rem 0.8rem;
+    border: 1px solid var(--gray-light);
+    border-radius: 999px;
+    color: var(--gray);
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.chip-nav a:active {
+    color: var(--accent-light);
+    border-color: var(--accent);
+}
+
+/* ─── Setlist grid ───────────────────────────────────────────────── */
+
+.setlist-grid {
+    border: 1px solid var(--light);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.sl-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) repeat(5, minmax(44px, 48px));
+    border-bottom: 1px solid var(--light);
+    align-items: stretch;
+}
+
+.sl-row:last-child {
+    border-bottom: none;
+}
+
+.sl-head {
+    background: var(--light);
+    font-size: 0.8rem;
+    color: var(--gray);
+}
+
+.sl-head .sl-song {
+    padding: 0.4rem 0.6rem;
+}
+
+.sl-cell-head {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+}
+
+.sl-song {
+    padding: 0.45rem 0.6rem;
+    min-width: 0;
+    cursor: pointer;
+}
+
+.sl-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sl-sub {
+    font-size: 0.75rem;
+    color: var(--gray);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Two-class selectors here on purpose: they must out-specify the generic
+   `.bandnotes button` accent styling. */
+.setlist-grid .sl-cell {
+    border: none;
+    border-left: 1px solid var(--white);
+    border-radius: 0;
+    min-height: 44px;
+    padding: 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    background: transparent;
+    color: var(--gray);
+}
+
+/* Readiness ramp — the at-a-glance point of the grid. Shared by grid
+   cells and picker chips (chips live outside main, in a body sheet). */
+.sl-cell.val-100, .chip.val-100 { background: rgba(46, 160, 67, 0.32); color: #7fdc96; }
+.sl-cell.val-90,  .chip.val-90  { background: rgba(46, 160, 67, 0.18); color: #7fdc96; }
+.sl-cell.val-80,  .chip.val-80  { background: rgba(210, 190, 40, 0.20); color: #e6d96a; }
+.sl-cell.val-70,  .chip.val-70  { background: rgba(224, 161, 58, 0.20); color: #eebf6d; }
+.sl-cell.val-60,  .chip.val-60  { background: rgba(224, 120, 58, 0.20); color: #efa27a; }
+.sl-cell.val-50,  .chip.val-50  { background: rgba(226, 59, 59, 0.18); color: #f08a7a; }
+.sl-cell.val-25,  .chip.val-25  { background: rgba(226, 59, 59, 0.28); color: #f08a7a; }
+.sl-cell.val-x,   .chip.val-x   { background: rgba(226, 59, 59, 0.10); color: var(--gray-light); }
+.sl-cell.val-none { color: var(--gray-light); }
+
+.legend {
+    margin-top: 0.6rem;
+    color: var(--gray);
+    font-size: 0.85rem;
+}
+
+.legend summary {
+    cursor: pointer;
+    padding: 0.3rem 0;
+}
+
+.legend-row {
+    display: flex;
+    gap: 0.6rem;
+    padding: 0.15rem 0;
+}
+
+.legend-mark {
+    flex: 0 0 2.6rem;
+    text-align: center;
+    font-weight: 700;
+}
+
+.legend-note {
+    margin-top: 0.5rem;
+    font-style: italic;
+    color: var(--gray-light);
+}
+
+#add-song-area {
+    margin-top: 0.8rem;
+}
+
+.row-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.row-form input {
+    flex: 1 1 8rem;
+}
+
+.row-form input[type="number"] {
+    flex: 0 1 5.5rem;
+}
+
+/* ─── Availability / agenda / goals ──────────────────────────────── */
+
+.avail-card {
+    border: 1px solid var(--light);
+    border-left: 4px solid var(--gray-light);
+    border-radius: 8px;
+    padding: 0.6rem 0.8rem;
+    margin-bottom: 0.7rem;
+}
+
+.avail-card.is-me {
+    border-left-color: var(--accent);
+}
+
+.avail-name {
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.text-node .text-body {
+    white-space: pre-wrap;
+    margin-bottom: 0.4rem;
+    overflow-wrap: break-word;
+}
+
+.text-node .text-empty {
+    color: var(--gray-light);
+    font-style: italic;
+}
+
+.text-node .ghost-btn {
+    min-height: 36px;
+    padding: 0.25rem 0.7rem;
+    font-size: 0.85rem;
+}
+
+.editor-btns {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.edit-warn {
+    color: var(--warm);
+    font-size: 0.85rem;
+    margin-top: 0.4rem;
+}
+
+#agenda-area {
+    margin-bottom: 2rem;
+}
+
+.goal-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.35rem 0;
+    cursor: pointer;
+}
+
+.goal-row input[type="checkbox"] {
+    min-height: 0;
+    width: 1.3rem;
+    height: 1.3rem;
+    accent-color: var(--accent);
+}
+
+.goal-text {
+    flex: 1;
+    overflow-wrap: anywhere;
+}
+
+.goal-done {
+    text-decoration: line-through;
+    color: var(--gray-light);
+}
+
+.bandnotes .goal-del {
+    background: transparent;
+    border: none;
+    color: var(--gray-light);
+    min-height: 36px;
+    padding: 0 0.5rem;
+}
+
+.goal-add {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.6rem;
+}
+
+.goal-add input {
+    flex: 1;
+}
+
+/* ─── Songs ──────────────────────────────────────────────────────── */
+
+.song-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.bandnotes .song-open {
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.6rem;
+    text-align: left;
+    background: var(--light);
+    border: 1px solid var(--gray-light);
+    color: var(--black);
+    font-weight: 400;
+}
+
+.song-title {
+    font-weight: 700;
+}
+
+.song-meta {
+    color: var(--gray);
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ─── Stage mode / song editor ───────────────────────────────────── */
+
+/* Overlays hang off <body>, outside main.bandnotes, so the `.bandnotes
+   button/input` base styling doesn't reach them — give them their own. */
+.stage-overlay button,
+.sheet-backdrop button,
+.stage-overlay input,
+.stage-overlay textarea {
+    font: inherit;
+    color: var(--black);
+    background: var(--light);
+    border: 1px solid var(--gray-light);
+    border-radius: 8px;
+    padding: 0.5rem 0.9rem;
+    min-height: 44px;
+    cursor: pointer;
+}
+
+.stage-overlay input,
+.stage-overlay textarea {
+    cursor: text;
+}
+
+.stage-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    background: #050505;
+    color: #f5f2ea;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+             env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+body.stage-open {
+    overflow: hidden;
+}
+
+.stage-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.7rem;
+    border-bottom: 1px solid #222;
+}
+
+.stage-bar-bottom {
+    border-bottom: none;
+    border-top: 1px solid #222;
+    justify-content: space-between;
+}
+
+.stage-bar .ghost-btn {
+    border-color: #333;
+    color: #bbb;
+}
+
+.stage-title {
+    flex: 1;
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.95rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.stage-view {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.stage-text {
+    font-family: inherit;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    line-height: 1.55;
+    padding: 1rem 1.1rem 60vh; /* runway so the last line can scroll up */
+    margin: 0;
+}
+
+.stage-overlay .scroll-btn {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    min-width: 7rem;
+}
+
+/* Song editor reuses the stage overlay frame */
+.editor-overlay {
+    gap: 0.5rem;
+    padding: 0.6rem;
+}
+
+.editor-title,
+.editor-meta {
+    width: 100%;
+}
+
+.editor-title {
+    font-weight: 700;
+}
+
+.editor-body {
+    flex: 1;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 0.95rem;
+    resize: none;
+}
+
+/* ─── Board ──────────────────────────────────────────────────────── */
+
+#messages-list {
+    max-height: 55vh;
+    overflow-y: auto;
+    border: 1px solid var(--light);
+    border-radius: 10px;
+    padding: 0.6rem 0.8rem;
+    margin-bottom: 0.6rem;
+}
+
+.msg-row {
+    margin-bottom: 0.7rem;
+}
+
+.msg-head {
+    display: flex;
+    gap: 0.5rem;
+    align-items: baseline;
+}
+
+.msg-name {
+    font-weight: 700;
+    color: var(--accent-light);
+    font-size: 0.9rem;
+}
+
+.msg-when {
+    color: var(--gray-light);
+    font-size: 0.75rem;
+}
+
+.msg-text {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+#message-form {
+    display: flex;
+    gap: 0.5rem;
+}
+
+#message-form input {
+    flex: 1;
+    min-width: 0;
+}
+
+/* ─── Info / venues ──────────────────────────────────────────────── */
+
+.member-row {
+    display: flex;
+    gap: 0.6rem;
+    align-items: baseline;
+    padding: 0.25rem 0;
+    flex-wrap: wrap;
+}
+
+.member-name {
+    font-weight: 700;
+}
+
+.member-role {
+    color: var(--gray);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.member-email {
+    color: var(--gray);
+    font-size: 0.85rem;
+    margin-left: auto;
+}
+
+.practice-space,
+.band-links {
+    margin-top: 0.7rem;
+}
+
+.band-links a {
+    color: var(--accent-light);
+    margin-right: 1rem;
+}
+
+.venue-card {
+    border: 1px solid var(--light);
+    border-radius: 8px;
+    padding: 0.6rem 0.8rem;
+    margin-bottom: 0.7rem;
+}
+
+.venue-head {
+    display: flex;
+    gap: 0.6rem;
+    align-items: baseline;
+}
+
+.venue-loc {
+    color: var(--gray);
+    font-size: 0.85rem;
+}
+
+.venue-info {
+    color: var(--gray);
+    font-size: 0.9rem;
+    margin-top: 0.3rem;
+}
+
+/* ─── Gallery ────────────────────────────────────────────────────── */
+
+#gallery-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+}
+
+.art-figure {
+    margin: 0;
+    border: 1px solid var(--light);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.art-figure img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.art-placeholder {
+    aspect-ratio: 4 / 3;
+    background: repeating-linear-gradient(
+        45deg, var(--light), var(--light) 8px,
+        var(--white) 8px, var(--white) 16px);
+}
+
+.art-figure figcaption {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.85rem;
+    color: var(--gray);
+}
+
+/* ─── Sheets (chip picker, member picker) ────────────────────────── */
+
+.sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: flex-end;
+}
+
+.sheet {
+    width: 100%;
+    background: #1a1816;
+    border-radius: 14px 14px 0 0;
+    padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
+}
+
+.sheet h3 {
+    margin-bottom: 0.8rem;
+    font-size: 1rem;
+    color: var(--black);
+}
+
+.chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.chip {
+    flex: 1 0 3.2rem;
+    border: 1px solid var(--gray-light);
+    background: var(--light);
+    font-weight: 700;
+}
+
+.member-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.sheet .member-btn {
+    background: var(--light);
+    border: 1px solid var(--gray-light);
+    color: var(--black);
+    font-size: 1.05rem;
+}
+
+/* ─── Footer / toast ─────────────────────────────────────────────── */
+
+.page-footer {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 1rem;
+    font-size: 0.85rem;
+}
+
+.page-footer a {
+    color: var(--gray);
+}
+
+.toast {
+    position: fixed;
+    left: 50%;
+    bottom: 1.5rem;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--accent);
+    color: #fff;
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 200;
+    max-width: 90vw;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
