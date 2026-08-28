@@ -1,0 +1,820 @@
+/* ==========================================================================
+   Training — unlisted stats page. Builds on css/style.css variables; dark
+   mode remaps them locally, the same way css/workouts.css does.
+
+   Chart colours are NOT set here. js/training.js writes them as presentation
+   attributes on the SVG so a serialized chart still renders correctly once
+   it leaves the page as a PNG.
+   ========================================================================== */
+
+body.training-page {
+    font-size: 17px;
+    line-height: 1.45;
+    /* Tap feedback we control, instead of the UA gray flash over whole rows. */
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* style.css disables pointer events on main for the homepage drawing canvas. */
+main.training {
+    pointer-events: auto;
+    padding: 1.25rem 1rem 3rem;
+    max-width: 760px;
+    margin: 0 auto;
+}
+
+main.training a,
+main.training button,
+main.training input,
+main.training details,
+main.training summary {
+    pointer-events: auto;
+}
+
+/* style.css's decorative homepage rules style bare <section> (hover wash,
+   negative side margins, padding). This page renders blocks as <section>, and
+   on iOS a tap makes :hover stick — painting the whole card rgba(255,255,255,.7),
+   unreadable in dark mode. Neutralize on this page. */
+/* style.css also sets a bare `section { margin: 2rem 0 }`. The strength
+   panels are <section>s inside a grid, so that vertical margin lands inside
+   every grid row as 64px of dead space. Zero all four sides; the rules below
+   (.block, two classes) outrank this one where a real margin is wanted. */
+body.training-page section {
+    padding: 0;
+    margin: 0;
+}
+
+body.training-page section:hover {
+    background: transparent;
+}
+
+/* ...but a strength panel IS a <section> with a real card surface, and the
+   rule above would fade that surface out from under it on hover (style.css
+   also puts a 0.3s background transition on every section, so it animates).
+   Restate the surface for both states, and drop the inherited transition. */
+body.training-page section.panel,
+body.training-page section.panel:hover,
+body.training-page section.card,
+body.training-page section.card:hover {
+    background: var(--surface);
+    transition: none;
+}
+
+/* The UA's [hidden] rule is a bare `display: none`, so any class rule that
+   sets `display` (every card, grid and flex block below) silently outranks
+   it — and the gate, the error state and the whole stats page render on top
+   of each other. Restate it with the weight to win. */
+body.training-page [hidden] {
+    display: none !important;
+}
+
+body.training-page {
+    --surface: #ffffff;
+    --line: rgba(26, 26, 26, 0.08);
+    --line-strong: rgba(26, 26, 26, 0.15);
+    --row-line: rgba(26, 26, 26, 0.06);
+    --track: rgba(45, 90, 61, 0.14);
+}
+
+/* ─── Shared shells ──────────────────────────────────────────────── */
+
+.training .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+}
+
+.training .block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 1.75rem;
+}
+
+.training .block-label {
+    font-size: 0.75rem;
+    font-weight: 400;
+    letter-spacing: 0.07em;
+    color: var(--gray);
+    margin: 0;
+}
+
+.training .sub-label {
+    font-size: 0.7rem;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    color: var(--gray-light);
+    margin: 0.5rem 0 0;
+}
+
+.training .fine {
+    font-size: 0.7rem;
+    color: var(--gray-light);
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* ─── Header ─────────────────────────────────────────────────────── */
+
+.training .back-link {
+    font-size: 0.8rem;
+    color: var(--gray);
+    text-decoration: none;
+}
+
+.training .page-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.training .title-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.85rem;
+    flex-wrap: wrap;
+}
+
+.training h1 {
+    margin: 0;
+    font-size: 1.85rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+}
+
+.training .unlisted-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.68rem;
+    color: var(--gray);
+    border: 1px solid var(--line-strong);
+    border-radius: 99px;
+    padding: 3px 9px;
+}
+
+.training .page-meta {
+    font-size: 0.85rem;
+    color: var(--gray);
+    margin: 0;
+}
+
+/* ─── Stat tiles ─────────────────────────────────────────────────── */
+
+.training .tiles {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.7rem;
+    margin-top: 1.5rem;
+}
+
+.training .tile {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.training .tile-label {
+    font-size: 0.72rem;
+    color: var(--gray);
+}
+
+.training .tile-value {
+    font-size: 1.6rem;
+    font-weight: 650;
+    line-height: 1.15;
+}
+
+.training .tile-unit {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--gray-light);
+}
+
+.training .tile-sub {
+    font-size: 0.72rem;
+    color: var(--gray-light);
+}
+
+.training .tile-sub.is-accent {
+    color: var(--accent);
+}
+
+/* ─── Strength small multiples ───────────────────────────────────── */
+
+.training .strength-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7rem;
+}
+
+.training .panel {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 1rem 1rem 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.training .panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.training .panel-name {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.training .panel-note {
+    font-size: 0.68rem;
+    font-weight: 400;
+    color: var(--warm);
+}
+
+/* ─── Export button ──────────────────────────────────────────────── */
+
+.training .export-btn {
+    background: none;
+    border: none;
+    padding: 4px;
+    margin: -4px;
+    cursor: pointer;
+    color: var(--gray-light);
+    border-radius: 5px;
+    line-height: 0;
+}
+
+.training .export-btn:hover,
+.training .export-btn:focus-visible {
+    color: var(--accent);
+    background: var(--track);
+}
+
+.training .export-btn[data-busy="1"] {
+    opacity: 0.45;
+}
+
+/* ─── Meters (goals + milestones) ────────────────────────────────── */
+
+.training .meter-row {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.training .meter {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--track);
+    overflow: hidden;
+}
+
+.training .meter-fill {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--accent);
+}
+
+.training .meter-text {
+    font-size: 0.75rem;
+    color: var(--gray);
+    white-space: nowrap;
+}
+
+/* ─── Rhythm ─────────────────────────────────────────────────────── */
+
+.training .rhythm-card {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.1rem 1.25rem;
+}
+
+.training .rhythm-chart {
+    flex-shrink: 0;
+    overflow-x: auto;
+}
+
+.training .rhythm-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    font-size: 0.8rem;
+    color: var(--gray);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.training .rhythm-legend li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.training .swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+
+.training .swatch.is-lift { background: var(--accent); }
+.training .swatch.is-cardio { border: 1.5px solid var(--accent); }
+.training .swatch.is-both { background: var(--accent); }
+
+.training .swatch.is-both::after {
+    content: "";
+    width: 4px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--surface);
+}
+
+/* ─── Chart cards ────────────────────────────────────────────────── */
+
+.training .chart-card {
+    padding: 1.1rem 1.25rem 0.75rem;
+    position: relative;
+}
+
+.training .chart-card .export-btn {
+    position: absolute;
+    top: 0.7rem;
+    right: 0.7rem;
+    z-index: 1;
+}
+
+/* ─── Milestones ─────────────────────────────────────────────────── */
+
+.training .milestones {
+    padding: 1.1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.training .milestone {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.training .milestone-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+}
+
+.training .milestone-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.training .milestone-value {
+    font-size: 0.75rem;
+    color: var(--gray);
+    white-space: nowrap;
+}
+
+.training .milestone-binding {
+    font-size: 0.75rem;
+    color: var(--gray-light);
+}
+
+/* ─── Exercise library ───────────────────────────────────────────── */
+
+.training .library-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.training .library-note {
+    font-size: 0.7rem;
+    color: var(--gray-light);
+}
+
+.training .chips {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.training .chips button {
+    font: inherit;
+    font-size: 0.75rem;
+    color: var(--black);
+    background: none;
+    border: 1px solid var(--line-strong);
+    border-radius: 99px;
+    padding: 5px 14px;
+    cursor: pointer;
+}
+
+.training .chips button[aria-pressed="true"] {
+    color: #ffffff;
+    background: var(--accent);
+    border-color: var(--accent);
+    font-weight: 550;
+}
+
+.training .chips-spacer { flex: 1; }
+
+.training .showing {
+    font-size: 0.7rem;
+    color: var(--gray-light);
+}
+
+.training .featured {
+    padding: 0.35rem 1rem;
+}
+
+.training .ex-row {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 0.55rem 0;
+    border-bottom: 1px solid var(--row-line);
+    cursor: pointer;
+    background: none;
+    border-left: none;
+    border-right: none;
+    border-top: none;
+    width: 100%;
+    font: inherit;
+    text-align: left;
+    color: inherit;
+}
+
+.training .featured .ex-row:last-of-type { border-bottom: none; }
+
+.training .ex-name {
+    flex: 1;
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    min-width: 0;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.training .tier-chip {
+    font-size: 0.56rem;
+    font-weight: 400;
+    letter-spacing: 0.05em;
+    color: var(--gray);
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+    padding: 1px 5px;
+    white-space: nowrap;
+}
+
+.training .ex-spark {
+    width: 120px;
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    color: var(--gray-light);
+    line-height: 1;
+}
+
+.training .ex-rx {
+    width: 110px;
+    text-align: right;
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+}
+
+.training .ex-when {
+    width: 56px;
+    text-align: right;
+    font-size: 0.7rem;
+    color: var(--gray-light);
+    flex-shrink: 0;
+}
+
+.training .ex-count {
+    width: 34px;
+    text-align: right;
+    font-size: 0.7rem;
+    color: var(--gray-light);
+    flex-shrink: 0;
+}
+
+.training .ex-detail {
+    padding: 0.5rem 0 1rem;
+    border-bottom: 1px solid var(--row-line);
+    position: relative;
+}
+
+.training .ex-detail .export-btn {
+    position: absolute;
+    top: 0.25rem;
+    right: 0;
+}
+
+.training .ex-detail-empty {
+    font-size: 0.75rem;
+    color: var(--gray-light);
+    padding-bottom: 0.5rem;
+}
+
+.training .compact-grid {
+    padding: 0.6rem 1rem;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2px 1.75rem;
+}
+
+.training .compact-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.3rem 0;
+    /* Rows are buttons so they are reachable by keyboard; strip the chrome. */
+    background: none;
+    border: none;
+    width: 100%;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+/* An expanded chart spans both columns instead of squeezing into one. */
+.training .compact-grid .ex-detail {
+    grid-column: 1 / -1;
+    border-bottom: none;
+}
+
+.training .compact-name { font-size: 0.75rem; }
+
+.training .compact-grid.is-dormant .compact-name { color: var(--gray); }
+
+.training .compact-stat {
+    font-size: 0.7rem;
+    color: var(--gray-light);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.training .paused-tag { color: var(--warm); }
+
+.training .empty-note {
+    font-size: 0.75rem;
+    color: var(--gray-light);
+    padding: 0.3rem 0;
+    grid-column: 1 / -1;
+}
+
+/* ─── Share ──────────────────────────────────────────────────────── */
+
+.training .share-card {
+    padding: 1.1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.training .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #ffffff;
+    background: var(--accent);
+    border: none;
+    border-radius: 6px;
+    padding: 9px 14px;
+    cursor: pointer;
+}
+
+.training .btn-primary[data-busy="1"] { opacity: 0.6; }
+
+/* ─── Gate + trouble ─────────────────────────────────────────────── */
+
+.training .gate,
+.training .trouble {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+    min-height: 70vh;
+}
+
+.training .gate-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1rem;
+    max-width: 380px;
+}
+
+.training .gate-lock { color: var(--accent); }
+
+.training .gate-blurb {
+    font-size: 0.88rem;
+    color: var(--gray);
+    line-height: 1.5;
+    margin: 0;
+}
+
+.training #gate-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.training #gate-input {
+    /* 16px keeps iOS Safari from zooming the viewport on focus. */
+    font-size: 16px;
+    font-family: inherit;
+    padding: 12px 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--black);
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.training #gate-input:focus { border-color: var(--accent); }
+
+.training #gate-form button,
+.training #retry {
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 550;
+    padding: 12px 14px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #ffffff;
+    width: 100%;
+    cursor: pointer;
+}
+
+.training #retry { width: auto; padding: 10px 18px; }
+
+.training .gate-hint,
+.training .gate-error,
+.training .trouble-message {
+    font-size: 0.75rem;
+    color: var(--gray-light);
+    margin: 0;
+}
+
+.training .gate-error,
+.training .trouble-message {
+    color: var(--warm);
+    font-size: 0.85rem;
+}
+
+.training .trouble-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.training .trouble-actions a,
+.training .page-footer a {
+    font-size: 0.75rem;
+    color: var(--gray);
+}
+
+.is-shaking { animation: shake 0.32s ease; }
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .is-shaking { animation: none; }
+}
+
+/* ─── Footer ─────────────────────────────────────────────────────── */
+
+.training .page-footer {
+    margin-top: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    align-items: flex-start;
+}
+
+/* ─── Narrow screens ─────────────────────────────────────────────── */
+
+@media (max-width: 680px) {
+    .training .tiles {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    /* One strength panel per swipe, per the phone artboard. */
+    .training .strength-grid {
+        display: flex;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        gap: 0.7rem;
+        /* Bleed to the screen edge so the next panel peeks in. */
+        margin: 0 -1rem;
+        padding: 0 1rem;
+        scrollbar-width: none;
+    }
+
+    .training .strength-grid::-webkit-scrollbar { display: none; }
+
+    .training .panel {
+        flex: 0 0 86%;
+        scroll-snap-align: start;
+    }
+
+    .training .rhythm-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .training .rhythm-chart {
+        width: 100%;
+        /* The heatmap keeps its cell size and scrolls rather than shrinking
+           into unreadable slivers. */
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .training .rhythm-legend {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 0.75rem 1.1rem;
+    }
+
+    /* The sparkline column is the first thing to go when width is scarce. */
+    .training .ex-spark { display: none; }
+
+    .training .ex-rx { width: auto; }
+
+    .training .compact-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 400px) {
+    .training .ex-count { display: none; }
+}
+
+/* ─── Dark mode (this page only) ─────────────────────────────────── */
+
+@media (prefers-color-scheme: dark) {
+    body.training-page {
+        --black: #ececec;
+        --gray: #a8a8a8;
+        --gray-light: #7d7d7d;
+        --light: #2b2b2b;
+        --white: #161616;
+        --accent: #6fbf87;
+        --accent-light: #4a8c5f;
+        --warm: #e08560;
+        --warm-light: #5a3527;
+
+        --surface: #1e1e1e;
+        --line: rgba(255, 255, 255, 0.10);
+        --line-strong: rgba(255, 255, 255, 0.16);
+        --row-line: rgba(255, 255, 255, 0.07);
+        --track: rgba(111, 191, 135, 0.18);
+    }
+
+    /* On the dark accent, white text is the low-contrast choice. */
+    .training .chips button[aria-pressed="true"],
+    .training .btn-primary,
+    .training #gate-form button,
+    .training #retry {
+        color: #10240f;
+    }
+}

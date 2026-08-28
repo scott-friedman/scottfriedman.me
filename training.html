@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Unlisted personal page: no analytics, no indexing, not in sitemap.
+         The stats themselves never live in this repo — the page fetches them
+         with a key derived from a typed password. See js/training.js. -->
+    <meta name="robots" content="noindex,nofollow">
+    <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fafafa">
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#161616">
+    <title>training</title>
+
+    <!-- Add-to-home-screen icon only. No manifest link: /manifest.json belongs
+         to the workouts page, and borrowing it would launch that page instead
+         of this one. -->
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="training">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/training.css">
+</head>
+<body class="training-page">
+    <main class="training">
+
+        <!-- ─── Gate ──────────────────────────────────────────────── -->
+        <section class="gate" id="gate" hidden>
+            <a class="back-link" href="index.html">← scottfriedman.ooo</a>
+            <div class="gate-body">
+                <svg class="gate-lock" width="28" height="28" viewBox="0 0 16 16" fill="none"
+                     stroke="currentColor" stroke-width="1.2" aria-hidden="true">
+                    <rect x="3.5" y="7" width="9" height="6.5" rx="1.5"></rect>
+                    <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"></path>
+                </svg>
+                <h1>training</h1>
+                <p class="gate-blurb">this page is just for its owner. the password
+                    never leaves your device — it only derives the key that fetches
+                    the stats.</p>
+                <p class="gate-error" id="gate-error" hidden role="alert"></p>
+                <form id="gate-form">
+                    <!-- Hidden username gives password managers a stable credential. -->
+                    <input type="text" name="username" value="training" autocomplete="username"
+                           hidden aria-hidden="true" tabindex="-1">
+                    <input type="password" id="gate-input" autocomplete="current-password"
+                           autocapitalize="off" spellcheck="false" placeholder="password"
+                           aria-label="password">
+                    <button type="submit">unlock</button>
+                </form>
+                <p class="gate-hint">remembered on this device until you clear it</p>
+            </div>
+        </section>
+
+        <!-- ─── Trouble (server down, stale schema) ───────────────── -->
+        <section class="trouble" id="trouble" hidden>
+            <a class="back-link" href="index.html">← scottfriedman.ooo</a>
+            <h1>training</h1>
+            <p class="trouble-message" id="trouble-message" role="alert"></p>
+            <div class="trouble-actions">
+                <button type="button" id="retry">retry</button>
+                <a href="#" id="trouble-lock">lock this device</a>
+            </div>
+        </section>
+
+        <!-- ─── Stats ─────────────────────────────────────────────── -->
+        <div id="stats" hidden>
+            <header class="page-header">
+                <a class="back-link" href="index.html">← scottfriedman.ooo</a>
+                <div class="title-row">
+                    <h1>training</h1>
+                    <span class="unlisted-chip">
+                        <svg width="11" height="11" viewBox="0 0 16 16" fill="none"
+                             stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                            <rect x="3.5" y="7" width="9" height="6.5" rx="1.5"></rect>
+                            <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"></path>
+                        </svg>
+                        unlisted · yours only
+                    </span>
+                </div>
+                <p class="page-meta" id="page-meta"></p>
+            </header>
+
+            <div class="tiles" id="tiles"></div>
+
+            <section class="block">
+                <h2 class="block-label">strength — estimated 1RM, T1 top sets</h2>
+                <div class="strength-grid" id="strength"></div>
+            </section>
+
+            <section class="block">
+                <h2 class="block-label">rhythm — every training day since <span id="rhythm-since">april</span></h2>
+                <div class="card rhythm-card">
+                    <div class="rhythm-chart" id="rhythm"></div>
+                    <ul class="rhythm-legend" id="rhythm-legend"></ul>
+                </div>
+            </section>
+
+            <section class="block">
+                <h2 class="block-label">volume — weekly tonnage, lbs lifted</h2>
+                <div class="card chart-card" id="tonnage-card">
+                    <div id="tonnage"></div>
+                </div>
+            </section>
+
+            <section class="block">
+                <h2 class="block-label">body weight — garmin index scale, by reading date</h2>
+                <div class="card chart-card" id="bodyweight-card">
+                    <div id="bodyweight"></div>
+                </div>
+            </section>
+
+            <section class="block">
+                <h2 class="block-label">milestones — current → target</h2>
+                <div class="card milestones" id="milestones"></div>
+            </section>
+
+            <section class="block library">
+                <div class="library-head">
+                    <h2 class="block-label" id="library-label">exercise library</h2>
+                    <span class="library-note">sorted by last trained · tap a row for full history</span>
+                </div>
+                <div class="chips" id="filters" role="group" aria-label="Filter exercises">
+                    <button type="button" data-filter="recent" aria-pressed="true">recent</button>
+                    <button type="button" data-filter="all" aria-pressed="false">all</button>
+                    <button type="button" data-filter="gym" aria-pressed="false">gym</button>
+                    <button type="button" data-filter="home" aria-pressed="false">home</button>
+                    <span class="chips-spacer"></span>
+                    <span class="showing" id="showing"></span>
+                </div>
+                <div class="card featured" id="featured"></div>
+                <h3 class="sub-label" id="rotation-label">also in rotation</h3>
+                <div class="card compact-grid" id="rotation"></div>
+                <h3 class="sub-label" id="dormant-label">dormant — not in the current rotation</h3>
+                <div class="card compact-grid" id="dormant"></div>
+                <p class="fine">weights as logged · cable weights are total moved
+                    (post–apr 2026 convention) · kettlebells progress by reps, then
+                    jump bells</p>
+            </section>
+
+            <section class="block">
+                <h2 class="block-label">share &amp; export</h2>
+                <div class="card share-card">
+                    <div class="share-actions">
+                        <button type="button" class="btn-primary" id="share-card-btn">
+                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"
+                                 stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+                                 stroke-linejoin="round" aria-hidden="true">
+                                <path d="M8 2.5V10"></path><path d="M5 7.5l3 3 3-3"></path>
+                                <path d="M3 12.5h10"></path>
+                            </svg>
+                            share card…
+                        </button>
+                    </div>
+                    <p class="fine" id="share-note">every chart also exports on its own from
+                        the arrow in its corner. exports are files rendered on this device —
+                        they carry only the numbers drawn on them, never the page link or
+                        your password.</p>
+                </div>
+            </section>
+
+            <footer class="page-footer">
+                <p class="fine">unlisted · noindex · no analytics · stats fetched with a key
+                    derived from your password, kept on this device · sources: hevy via
+                    sessions log, garmin index scale, plan milestones</p>
+                <a href="#" id="lock-device">lock this device</a>
+            </footer>
+        </div>
+    </main>
+
+    <script src="js/training.js"></script>
+</body>
+</html>
