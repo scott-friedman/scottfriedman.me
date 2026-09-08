@@ -202,6 +202,21 @@
     },
 
     // ========================================
+    // FACT MACHINE (Scott's room) - Public read, worker writes
+    // The room-api worker writes with the database secret on behalf of
+    // Grok Bot (see ~/room/docs/FACTS_API.md). Replies from visitors are
+    // private: the worker stores them and forwards them to Telegram.
+    // ========================================
+    "facts": {
+      ".read": true,
+      ".write": false
+    },
+    "factReplies": {
+      ".read": false,
+      ".write": false
+    },
+
+    // ========================================
     // FIGURINES - Public read/create/interact, admin delete
     // Mirrors the stickynotes pattern: anyone can add a figurine or
     // interact (move/pet/feed change stats), but name and model are

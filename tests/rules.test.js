@@ -61,6 +61,18 @@ test('anyone can read litterrobot, nobody can write publicly', async () => {
     await assertFails(set(ref(anonDb(), 'litterrobot/current'), { status: 'fake' }));
 });
 
+// ---------- fact machine (room-api worker writes via database secret) ----------
+
+test('anyone can read facts, nobody can write publicly', async () => {
+    await assertSucceeds(get(ref(anonDb(), 'facts')));
+    await assertFails(push(ref(anonDb(), 'facts'), { text: 'fake', active: true }));
+});
+
+test('fact replies are private', async () => {
+    await assertFails(get(ref(anonDb(), 'factReplies')));
+    await assertFails(push(ref(anonDb(), 'factReplies'), { message: 'hi' }));
+});
+
 // ---------- figurines ----------
 
 const validFigurine = () => ({
