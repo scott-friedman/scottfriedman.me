@@ -3,7 +3,7 @@
   "private": true,
   "description": "Firebase RTDB security-rules tests. `npm test` starts the database emulator (requires Java) and runs the assertions against ../firebase.rules.json.",
   "scripts": {
-    "test": "firebase emulators:exec --only database --project demo-test \"node --test\""
+    "test": "PATH=/opt/homebrew/opt/openjdk/bin:$PATH firebase emulators:exec --only database --project demo-test \"node --test\""
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^4.0.1",

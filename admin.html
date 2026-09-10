@@ -1331,7 +1331,8 @@ You can use HTML tags like:
 
         // ==================== Garfield Phone ====================
         // Edits `phone/config`, which the room-api worker reads before it
-        // rings the real phone (see ~/room/docs/PHONE.md).
+        // rings the real phone (see docs/PHONE.md on the room repo's
+        // garfield-phone branch).
 
         const PHONE_DAYS = [
             ['mon', 'Monday'], ['tue', 'Tuesday'], ['wed', 'Wednesday'], ['thu', 'Thursday'],
@@ -1453,14 +1454,27 @@ You can use HTML tags like:
         function phoneQuiet(hours) {
             let until;
             if (hours === 'morning') {
-                const d = new Date();
-                if (d.getHours() >= 9) d.setDate(d.getDate() + 1);
-                d.setHours(9, 0, 0, 0);
-                until = d.getTime();
+                until = nextNineEastern();
             } else {
                 until = Date.now() + hours * 3600000;
             }
             phoneOverride({ quietUntil: until, ringAnywayUntil: 0 });
+        }
+
+        // The next 9:00 in the phone's time zone, not the browser's.
+        function nextNineEastern() {
+            const fmt = new Intl.DateTimeFormat('en-US', {
+                timeZone: phoneConfig.tz, year: 'numeric', month: '2-digit', day: '2-digit', timeZoneName: 'longOffset'
+            });
+            const nineOn = (ms) => {
+                const p = Object.fromEntries(fmt.formatToParts(new Date(ms)).map(x => [x.type, x.value]));
+                const m = p.timeZoneName.match(/([+-])(\d{2}):?(\d{2})?/);
+                const offset = m ? (m[1] === '-' ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3] || 0)) * 60000 : 0;
+                return Date.UTC(p.year, p.month - 1, p.day, 9) - offset;
+            };
+            const now = Date.now();
+            const today = nineOn(now);
+            return today > now ? today : nineOn(today + 86400000);
         }
 
         function phoneRing() {
