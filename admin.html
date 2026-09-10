@@ -439,6 +439,34 @@
                 </div>
                 <span id="clear-notes-status" class="status" style="display: block; margin-top: 0.5rem;"></span>
             </div>
+
+            <div class="section">
+                <h2>Garfield Phone</h2>
+                <p style="color: #666; font-size: 0.85rem; margin-bottom: 1rem;">
+                    When the real Garfield phone may ring from Scott's room. Outside these hours a caller hears the greeting and leaves a message, which lands in Telegram. Times are Eastern.
+                </p>
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; padding: 1rem; background: #f9f9f9; border-radius: 8px;">
+                    <span id="phone-status" style="font-weight: 500; margin-right: 0.5rem;">Loading...</span>
+                    <button class="btn-small btn-edit" onclick="phoneQuiet(1)">Quiet for 1 hour</button>
+                    <button class="btn-small btn-edit" onclick="phoneQuiet(3)">Quiet for 3 hours</button>
+                    <button class="btn-small btn-edit" onclick="phoneQuiet('morning')">Quiet until 9 am</button>
+                    <button class="btn-small btn-edit" onclick="phoneRing()">Let it ring for the next hour</button>
+                    <button class="btn-small btn-delete" onclick="phoneClear()">Back to the schedule</button>
+                </div>
+                <h3>Hours</h3>
+                <div id="phone-days"></div>
+                <h3>Caps</h3>
+                <p style="color: #666; font-size: 0.85rem; margin-bottom: 0.5rem;">
+                    Past these, callers get the answering machine even inside the hours.
+                </p>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.5rem;">
+                    <label style="font-size: 0.85rem;">Rings per hour<br><input id="phone-max-hour" type="number" min="0" max="60" style="width: 90px;"></label>
+                    <label style="font-size: 0.85rem;">Rings per day<br><input id="phone-max-day" type="number" min="0" max="500" style="width: 90px;"></label>
+                    <label style="font-size: 0.85rem;">Seconds between rings<br><input id="phone-gap" type="number" min="0" max="3600" style="width: 90px;"></label>
+                </div>
+                <button class="save-btn" onclick="savePhone()" style="margin-top: 1rem; width: 100%;">Save Phone Hours</button>
+                <span id="phone-save-status" class="status" style="display: block; text-align: center; margin-top: 0.5rem;"></span>
+            </div>
         </div>
     </div>
 
@@ -559,6 +587,7 @@ You can use HTML tags like:
             loadCurrentContent();
             loadPages();
             loadCommandCenter();
+            loadPhone();
         }
 
         function showLogin() {
@@ -1298,6 +1327,148 @@ You can use HTML tags like:
         function clearCCLog() {
             if (!confirm('Clear all activity logs?')) return;
             db.ref('commandcenter/log').remove();
+        }
+
+        // ==================== Garfield Phone ====================
+        // Edits `phone/config`, which the room-api worker reads before it
+        // rings the real phone (see ~/room/docs/PHONE.md).
+
+        const PHONE_DAYS = [
+            ['mon', 'Monday'], ['tue', 'Tuesday'], ['wed', 'Wednesday'], ['thu', 'Thursday'],
+            ['fri', 'Friday'], ['sat', 'Saturday'], ['sun', 'Sunday']
+        ];
+        let phoneConfig = null;
+
+        function loadPhone() {
+            db.ref('phone/config').once('value').then((snapshot) => {
+                const data = snapshot.val() || {};
+                phoneConfig = {
+                    tz: 'America/New_York',
+                    quietUntil: 0,
+                    ringAnywayUntil: 0,
+                    maxRingsPerHour: 4,
+                    maxRingsPerDay: 20,
+                    minGapSeconds: 60,
+                    ...data,
+                    windows: {}
+                };
+                // Firebase returns a list as an array or as {0: ..., 1: ...}.
+                for (const [day] of PHONE_DAYS) {
+                    const list = (data.windows || {})[day];
+                    phoneConfig.windows[day] = Array.isArray(list) ? list.slice() : Object.values(list || {});
+                }
+                renderPhone();
+            }).catch((err) => {
+                document.getElementById('phone-status').textContent = 'Could not load: ' + err.message;
+            });
+        }
+
+        function renderPhone() {
+            renderPhoneStatus();
+            document.getElementById('phone-days').innerHTML = PHONE_DAYS.map(([day, label]) => {
+                const rows = phoneConfig.windows[day].map((w, i) => {
+                    const [from, to] = w.split('-');
+                    return `
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+                        <input type="time" value="${from}" style="width: auto; margin: 0;" onchange="setPhoneWindow('${day}', ${i}, this.value, null)">
+                        <span>to</span>
+                        <input type="time" value="${to}" style="width: auto; margin: 0;" onchange="setPhoneWindow('${day}', ${i}, null, this.value)">
+                        <button class="remove-btn" onclick="removePhoneWindow('${day}', ${i})" title="Remove">&times;</button>
+                    </div>`;
+                }).join('');
+                return `
+                <div class="item" style="padding-left: 1rem;">
+                    <div class="item-header">
+                        <span class="item-title">${label}</span>
+                        <button class="btn-small btn-edit" onclick="addPhoneWindow('${day}')">+ Window</button>
+                    </div>
+                    ${rows || '<span style="color: #999; font-size: 0.85rem;">Silent all day</span>'}
+                </div>`;
+            }).join('');
+            document.getElementById('phone-max-hour').value = phoneConfig.maxRingsPerHour;
+            document.getElementById('phone-max-day').value = phoneConfig.maxRingsPerDay;
+            document.getElementById('phone-gap').value = phoneConfig.minGapSeconds;
+        }
+
+        function renderPhoneStatus() {
+            const now = Date.now();
+            const when = (ms) => new Date(ms).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+            const el = document.getElementById('phone-status');
+            if (phoneConfig.ringAnywayUntil > now) el.textContent = 'Ringing anyway until ' + when(phoneConfig.ringAnywayUntil);
+            else if (phoneConfig.quietUntil > now) el.textContent = 'Quiet until ' + when(phoneConfig.quietUntil);
+            else el.textContent = 'Following the schedule';
+        }
+
+        function addPhoneWindow(day) {
+            phoneConfig.windows[day].push('09:00-21:00');
+            renderPhone();
+        }
+
+        function setPhoneWindow(day, i, from, to) {
+            const [a, b] = phoneConfig.windows[day][i].split('-');
+            phoneConfig.windows[day][i] = `${from || a}-${to || b}`;
+        }
+
+        function removePhoneWindow(day, i) {
+            phoneConfig.windows[day].splice(i, 1);
+            renderPhone();
+        }
+
+        function savePhone() {
+            const status = document.getElementById('phone-save-status');
+            const windows = {};
+            for (const [day] of PHONE_DAYS) {
+                if (phoneConfig.windows[day].length) windows[day] = phoneConfig.windows[day];
+            }
+            const config = {
+                tz: phoneConfig.tz,
+                windows,
+                quietUntil: phoneConfig.quietUntil || 0,
+                ringAnywayUntil: phoneConfig.ringAnywayUntil || 0,
+                maxRingsPerHour: Number(document.getElementById('phone-max-hour').value) || 0,
+                maxRingsPerDay: Number(document.getElementById('phone-max-day').value) || 0,
+                minGapSeconds: Number(document.getElementById('phone-gap').value) || 0
+            };
+            db.ref('phone/config').set(config)
+                .then(() => {
+                    status.textContent = 'Saved!';
+                    status.className = 'status success';
+                    setTimeout(() => { status.textContent = ''; }, 2000);
+                })
+                .catch(err => {
+                    status.textContent = 'Error: ' + err.message;
+                    status.className = 'status error';
+                });
+        }
+
+        // The quick switches write at once; the hours wait for Save.
+        function phoneOverride(patch) {
+            Object.assign(phoneConfig, patch);
+            renderPhoneStatus();
+            db.ref('phone/config').update(patch).catch(err => {
+                document.getElementById('phone-status').textContent = 'Error: ' + err.message;
+            });
+        }
+
+        function phoneQuiet(hours) {
+            let until;
+            if (hours === 'morning') {
+                const d = new Date();
+                if (d.getHours() >= 9) d.setDate(d.getDate() + 1);
+                d.setHours(9, 0, 0, 0);
+                until = d.getTime();
+            } else {
+                until = Date.now() + hours * 3600000;
+            }
+            phoneOverride({ quietUntil: until, ringAnywayUntil: 0 });
+        }
+
+        function phoneRing() {
+            phoneOverride({ ringAnywayUntil: Date.now() + 3600000, quietUntil: 0 });
+        }
+
+        function phoneClear() {
+            phoneOverride({ quietUntil: 0, ringAnywayUntil: 0 });
         }
 
         // ==================== Clear Drawings ====================

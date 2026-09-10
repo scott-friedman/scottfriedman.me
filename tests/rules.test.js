@@ -73,6 +73,37 @@ test('fact replies are private', async () => {
     await assertFails(push(ref(anonDb(), 'factReplies'), { message: 'hi' }));
 });
 
+// ---------- Garfield phone (room-api worker writes state via database secret) ----------
+
+const validPhoneConfig = () => ({
+    tz: 'America/New_York',
+    windows: { mon: ['09:00-21:00'], sat: ['10:00-13:00', '18:00-22:00'] },
+    quietUntil: 0,
+    ringAnywayUntil: 0,
+    maxRingsPerHour: 4,
+    maxRingsPerDay: 20,
+    minGapSeconds: 60,
+});
+
+test('phone schedule is admin only', async () => {
+    await assertFails(get(ref(anonDb(), 'phone/config')));
+    await assertFails(get(ref(anonDb(), 'phone/state')));
+    await assertFails(set(ref(anonDb(), 'phone/config/quietUntil'), 0));
+    await assertSucceeds(set(ref(adminDb(), 'phone/config'), validPhoneConfig()));
+    await assertSucceeds(get(ref(adminDb(), 'phone/config')));
+    await assertSucceeds(update(ref(adminDb(), 'phone/config'), { quietUntil: Date.now() + 3600000 }));
+});
+
+test('phone schedule rejects bad windows and unknown keys', async () => {
+    await assertFails(set(ref(adminDb(), 'phone/config/windows/mon'), ['9am-9pm']));
+    await assertFails(set(ref(adminDb(), 'phone/config/windows/monday'), ['09:00-21:00']));
+    await assertFails(set(ref(adminDb(), 'phone/config/maxRingsPerHour'), 999));
+    await assertFails(set(ref(adminDb(), 'phone/config/bogus'), 1));
+    await assertFails(set(ref(adminDb(), 'phone/bogus'), 1));
+    // The worker's own nodes stay writable for an admin reset.
+    await assertSucceeds(set(ref(adminDb(), 'phone/state'), { busy: false, since: 0 }));
+});
+
 // ---------- figurines ----------
 
 const validFigurine = () => ({

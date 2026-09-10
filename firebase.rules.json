@@ -217,6 +217,38 @@
     },
 
     // ========================================
+    // GARFIELD PHONE (Scott's room) - Admin only
+    // The schedule that decides when the real Garfield phone may ring.
+    // admin.html edits `config`; the room-api worker reads it and writes
+    // `state`, `log` and `messages` with the database secret. Nothing here
+    // is public: visitors only ever see a yes/no from the worker.
+    // Every child is named before `$other`, which otherwise swallows them.
+    // ========================================
+    "phone": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).exists()",
+      ".write": "auth != null && root.child('admins').child(auth.uid).exists()",
+      "config": {
+        "tz": { ".validate": "newData.isString() && newData.val().length <= 60" },
+        "windows": {
+          "$day": {
+            ".validate": "$day.matches(/^(mon|tue|wed|thu|fri|sat|sun)$/)",
+            "$i": { ".validate": "newData.isString() && newData.val().matches(/^([01][0-9]|2[0-3]):[0-5][0-9]-([01][0-9]|2[0-3]):[0-5][0-9]$/)" }
+          }
+        },
+        "quietUntil": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "ringAnywayUntil": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "maxRingsPerHour": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 60" },
+        "maxRingsPerDay": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 500" },
+        "minGapSeconds": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3600" },
+        "$other": { ".validate": false }
+      },
+      "state": {},
+      "log": { ".indexOn": ["at"] },
+      "messages": { ".indexOn": ["at"] },
+      "$other": { ".validate": false }
+    },
+
+    // ========================================
     // FIGURINES - Public read/create/interact, admin delete
     // Mirrors the stickynotes pattern: anyone can add a figurine or
     // interact (move/pet/feed change stats), but name and model are
